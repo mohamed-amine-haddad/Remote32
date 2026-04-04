@@ -1,0 +1,25 @@
+# Dependencies
+frontend/node_modules/
+
+# Environment variables
+.env
+
+# Database files
+*.db
+*.sqlite3
+
+# VS Code settings
+.vscode/settings.json
+
+# Builds
+frontend/dist/
+
+# Python files
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# OS junk
+.DS_Store
+Thumbs.db
