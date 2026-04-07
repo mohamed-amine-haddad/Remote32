@@ -1,1 +1,8 @@
 @import "tailwindcss";
+
+@theme {
+  --font-display: "Bebas Neue", sans-serif;
+  --font-body: "Space Grotesk", sans-serif;
+  --color-accent: #FFE500;
+  --color-accent-hover: #e6ce00;
+}
