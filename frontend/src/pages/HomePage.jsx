@@ -7,19 +7,33 @@ export default function HomePage() {
 
   const hero = "px-6 md:px-16 lg:px-32 py-20 md:py-32 border-b-2 border-black"
 
-  const heroTitle = "font-display text-6xl md:text-8xl leading-none mb-6"
+  const heroTitle = "font-display text-6xl md:text-8xl leading-none mb-6 text-navy"
 
   const heroSubtitle = "text-lg text-gray-700 mb-10 leading-relaxed max-w-xl"
 
   const ctaRow = "flex flex-wrap gap-4"
 
-  const primaryBtn = "px-6 py-3 bg-accent border-2 border-black font-bold shadow-[4px_4px_0px_black] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all duration-100"
+  const primaryBtn = [
+    "px-6 py-3",
+    "bg-accent border-2 border-black rounded-none",
+    "font-bold",
+    "shadow-nb",
+    "hover:shadow-none hover:translate-x-1 hover:translate-y-1",
+    "transition-all duration-100"
+  ].join(" ")
 
-  const secondaryBtn = "px-6 py-3 bg-white border-2 border-black font-bold shadow-[4px_4px_0px_black] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all duration-100"
+  const secondaryBtn = [
+    "px-6 py-3",
+    "bg-white border-2 border-black rounded-none",
+    "font-bold",
+    "shadow-nb",
+    "hover:shadow-none hover:translate-x-1 hover:translate-y-1",
+    "transition-all duration-100"
+  ].join(" ")
 
   const howSection = "px-6 md:px-16 lg:px-32 py-20"
 
-  const howTitle = "font-display text-4xl md:text-5xl mb-12"
+  const howTitle = "font-display text-4xl md:text-5xl mb-12 text-navy"
 
   const howGrid = "grid grid-cols-1 md:grid-cols-3 gap-6"
 
@@ -27,7 +41,6 @@ export default function HomePage() {
     <div className={page}>
       <Navbar />
 
-      {/* HERO */}
       <section className={hero}>
         <h1 className={heroTitle}>Remote STM32 Lab</h1>
         <p className={heroSubtitle}>
@@ -40,7 +53,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
       <section className={howSection}>
         <h2 className={howTitle}>How It Works</h2>
         <div className={howGrid}>
@@ -58,14 +70,14 @@ export default function HomePage() {
 
 function StepCard({ number, title, description }) {
 
-  const card = "border-2 border-black p-6 shadow-[4px_4px_0px_black] flex flex-col gap-3"
-  const num = "font-display text-5xl text-accent"
-  const cardTitle = "font-bold text-lg"
+  const card = "border-2 border-black rounded-none p-6 shadow-nb flex flex-col gap-3"
+  const num = "font-display text-5xl text-accent text-stroke"
+  const cardTitle = "font-bold text-lg text-navy"
   const cardDesc = "text-gray-600 text-sm leading-relaxed"
 
   return (
     <div className={card}>
-      <span className={num} style={{ WebkitTextStroke: '2px black' }}>{number}</span>
+      <span className={num}>{number}</span>
       <h3 className={cardTitle}>{title}</h3>
       <p className={cardDesc}>{description}</p>
     </div>

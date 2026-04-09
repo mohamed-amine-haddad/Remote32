@@ -3,6 +3,27 @@
 @theme {
   --font-display: "Bebas Neue", sans-serif;
   --font-body: "Space Grotesk", sans-serif;
-  --color-accent: #FFE500;
-  --color-accent-hover: #e6ce00;
+
+  --color-accent: #FFD200;
+  --color-accent-hover: #e6be00;
+  --color-navy: #03234B;
+
+  --shadow-nb: 4px 4px 0px #000;
+  --shadow-nb-sm: 3px 3px 0px #000;
+}
+
+
+@layer utilities {
+  .text-stroke {
+    -webkit-text-stroke: 2px #000;
+    text-stroke: 2px #000;
+  }
+}
+
+
+@layer base {
+  :focus-visible {
+    outline: 3px solid #FFD200;
+    outline-offset: 3px;
+  }
 }
