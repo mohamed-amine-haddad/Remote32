@@ -70,10 +70,10 @@ export default function HomePage() {
 
 function StepCard({ number, title, description }) {
 
-  const card = "border-2 border-black rounded-none p-6 shadow-nb flex flex-col gap-3"
-  const num = "font-display text-5xl text-accent text-stroke"
-  const cardTitle = "font-bold text-lg text-navy"
-  const cardDesc = "text-gray-600 text-sm leading-relaxed"
+  const card = "group border-2 border-black rounded-none p-6 shadow-nb flex flex-col gap-3 transition-transform duration-300 hover:scale-110"
+  const num = "font-display text-5xl text-accent text-stroke transition-transform duration-300 group-hover:scale-110"
+  const cardTitle = "font-bold text-lg text-navy transition-transform duration-300 group-hover:scale-110"
+  const cardDesc = "text-gray-600 text-sm leading-relaxed transition-transform duration-300 group-hover:scale-110"
 
   return (
     <div className={card}>
