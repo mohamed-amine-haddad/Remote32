@@ -4,16 +4,16 @@ conn = sqlite3.connect("remote32.db")
 cursor = conn.cursor()
 
 boards = [
-    ("Nucleo-F401RE", "066FFF3632524B3043205333", 3333, 4444, 6666),
-    ("Nucleo-F103RB", "066DFF535550755187063847", 3334, 4445, 6667),
+    ("Nucleo-F401RE", "066FFF3632524B3043205333", 3333, 4444, 6666, "localhost"),
+    ("Nucleo-F103RB", "066DFF535550755187063847", 3334, 4445, 6667, "localhost"),
 ]
 
-for name, serial, gdb_port, telnet_port, tcl_port in boards:
+for name, serial, gdb_port, telnet_port, tcl_port, pi_host in boards:
     # Insert boards in db
     cursor.execute("""
-        INSERT OR IGNORE INTO boards (name, serial_number, config_file, gdb_port, telnet_port, tcl_port)
-        VALUES (?, ?, '', ?, ?, ?)
-    """, (name, serial, gdb_port, telnet_port, tcl_port))
+        INSERT OR IGNORE INTO boards (name, serial_number, config_file, gdb_port, telnet_port, tcl_port, pi_host)
+        VALUES (?, ?, '', ?, ?, ?, ?)
+    """, (name, serial, gdb_port, telnet_port, tcl_port, pi_host))
 
     # Assign a unique .cfg file to each board
     cursor.execute("SELECT id FROM boards WHERE serial_number = ?", (serial,))

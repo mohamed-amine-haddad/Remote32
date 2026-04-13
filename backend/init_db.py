@@ -13,8 +13,13 @@ CREATE TABLE IF NOT EXISTS boards (
     telnet_port   INTEGER NOT NULL UNIQUE,
     tcl_port      INTEGER NOT NULL UNIQUE,
     status        TEXT    NOT NULL DEFAULT 'idle',
-    openocd_pid   INTEGER
+    openocd_pid   INTEGER,
+    pi_host       TEXT    NOT NULL
 );""")
+
+cursor.execute("""
+ALTER TABLE boards ADD COLUMN pi_host TEXT NOT NULL DEFAULT 'localhost';
+""")
 
 
 conn.commit()
