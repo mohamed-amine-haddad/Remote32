@@ -153,9 +153,9 @@ export default function ApplicationDetailPage() {
                         >
                             Start session now
                         </button>
-                        <button className={secondaryBtn}>
+                        <Link to={`/book/application/${id}`} className={secondaryBtn}>
                             Book a time slot
-                        </button>
+                        </Link>
                     </div>
                 </div>
 

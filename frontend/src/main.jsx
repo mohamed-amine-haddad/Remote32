@@ -10,6 +10,7 @@ import DevicesPage from './pages/DevicesPage'
 import ApplicationsPage from './pages/ApplicationsPage'
 import DeviceDetailPage from './pages/DeviceDetailPage'
 import ApplicationDetailPage from './pages/ApplicationDetailPage'
+import BookingPage from './pages/BookingPage'
 import DeviceSessionPage from './pages/DeviceSessionPage'
 import ApplicationSessionPage from './pages/ApplicationSessionPage'
 import ProfilePage from './pages/ProfilePage'
@@ -25,6 +26,8 @@ createRoot(document.getElementById('root')).render(
         <Route path="/applications" element={<ApplicationsPage />} />
         <Route path="/devices/:id" element={<DeviceDetailPage />} />
         <Route path="/applications/:id" element={<ApplicationDetailPage />} />
+        <Route path="/book/device/:id" element={<BookingPage type="device" />} />
+        <Route path="/book/application/:id" element={<BookingPage type="application" />} />
         <Route path="/session/device/:id" element={<DeviceSessionPage />} />
         <Route path="/session/application/:id" element={<ApplicationSessionPage />} />
         <Route path="/profile" element={<ProfilePage />} />

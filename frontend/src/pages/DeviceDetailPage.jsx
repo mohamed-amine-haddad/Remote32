@@ -121,9 +121,9 @@ export default function DeviceDetailPage() {
                         >
                             Start session now
                         </button>
-                        <button className={secondaryBtn}>
+                        <Link to={`/book/device/${id}`} className={secondaryBtn}>
                             Book a time slot
-                        </button>
+                        </Link>
                     </div>
                 </div>
 
