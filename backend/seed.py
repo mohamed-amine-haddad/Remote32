@@ -1,8 +1,6 @@
 from sqlmodel import Session
 from models import Board
-from database import engine, create_db
-
-create_db()
+from database import engine
 
 boards = [
   Board(name="Nucleo-F401RE", serial_number="066FFF3632524B3043205333", gdb_port=3333, telnet_port=4444, tcl_port=6666),
