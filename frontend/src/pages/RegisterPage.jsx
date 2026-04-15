@@ -1,21 +1,36 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function RegisterPage() {
+
+    const { register } = useAuth()
+    const navigate = useNavigate()
 
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [confirm, setConfirm] = useState('')
+    const [error, setError] = useState('')
+    const [submitting, setSubmitting] = useState(false)
 
-    // Will be wired to the backend later
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        setError('')
         if (password !== confirm) {
-            alert('Passwords do not match')
+            setError('Passwords do not match')
             return
         }
-        console.log('Register:', { name, email, password })
+        setSubmitting(true)
+        try {
+            await register(name, email, password)
+            // Registration succeeds → redirect to login to get the cookie
+            navigate('/login')
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setSubmitting(false)
+        }
     }
 
     // Layout
@@ -117,9 +132,14 @@ export default function RegisterPage() {
                         />
                     </div>
 
+                    {/* Error */}
+                    {error && (
+                        <p className="mb-4 text-sm text-red-600 font-medium">{error}</p>
+                    )}
+
                     {/* Submit */}
-                    <button className={submitBtn} onClick={handleSubmit}>
-                        Create account
+                    <button className={submitBtn} onClick={handleSubmit} disabled={submitting}>
+                        {submitting ? 'Creating account…' : 'Create account'}
                     </button>
 
                     <p className={footer}>

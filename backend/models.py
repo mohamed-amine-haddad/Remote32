@@ -33,3 +33,12 @@ class ApplicationSession(SQLModel, table=True):
     start_time: datetime
     end_time: datetime
     status: str  # reserved | active | ended | cancelled
+
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    email: str = Field(unique=True, index=True)
+    hashed_password: str
+    role: str = Field(default="user")  # "user" or "admin"
+

@@ -1,15 +1,30 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginPage() {
+
+    const { login } = useAuth()
+    const navigate = useNavigate()
 
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [rememberMe, setRememberMe] = useState(false)
+    const [error, setError] = useState('')
+    const [submitting, setSubmitting] = useState(false)
 
-    const handleSubmit = () => {
-        console.log('Login:', { email, password, rememberMe })
+    const handleSubmit = async () => {
+        setError('')
+        setSubmitting(true)
+        try {
+            await login(email, password, rememberMe)
+            navigate('/')
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setSubmitting(false)
+        }
     }
 
     // Layout
@@ -110,9 +125,14 @@ export default function LoginPage() {
                         <span className={rememberLabel}>Remember me for 30 days</span>
                     </label>
 
+                    {/* Error */}
+                    {error && (
+                        <p className="mb-4 text-sm text-red-600 font-medium">{error}</p>
+                    )}
+
                     {/* Submit */}
-                    <button className={submitBtn} onClick={handleSubmit}>
-                        Log in
+                    <button className={submitBtn} onClick={handleSubmit} disabled={submitting}>
+                        {submitting ? 'Logging in…' : 'Log in'}
                     </button>
 
                     <p className={footer}>
