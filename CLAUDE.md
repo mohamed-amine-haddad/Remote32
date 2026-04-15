@@ -130,3 +130,4 @@ JWT issued on login/register, sent as **httpOnly cookie** (not localStorage).
 - Do not use `localStorage` or `sessionStorage` for auth — JWT lives in httpOnly cookies
 - Do not add architecture-specific code — backend must run identically on Windows 11 (dev) and Raspberry Pi OS (production)
 - Do not commit in main.
+- Do not push to origin.

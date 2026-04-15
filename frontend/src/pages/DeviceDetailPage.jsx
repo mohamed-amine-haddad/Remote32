@@ -1,7 +1,8 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import StatusBadge from '../components/StatusBadge'
 import JsonRenderer from '../components/JsonRenderer'
+import { useAuth } from '../contexts/AuthContext'
 
 // Mock data
 const DEVICES = {
@@ -43,9 +44,20 @@ const DEVICES = {
 
 export default function DeviceDetailPage() {
 
-    // useParams reads the :id from the URL — e.g. /devices/1 gives { id: "1" }
     const { id } = useParams()
+    const navigate = useNavigate()
+    const { user } = useAuth()
     const device = DEVICES[id]
+
+    // If the user is not logged in, redirect to /login before entering
+    // a protected action (session or booking).
+    function requireAuth(destination) {
+        if (user) {
+            navigate(destination)
+        } else {
+            navigate('/login')
+        }
+    }
 
     // Layout
     const page = "min-h-screen bg-white font-body flex flex-col"
@@ -112,18 +124,22 @@ export default function DeviceDetailPage() {
                         <StatusBadge status={device.status} />
                     </div>
 
-                    {/* Action buttons — disabled visually if not free */}
+                    {/* Action buttons — Start/Book require auth; Start also requires device to be free */}
                     <div className={actions}>
                         <button
                             className={primaryBtn}
                             disabled={device.status !== 'free'}
                             style={device.status !== 'free' ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                            onClick={() => requireAuth(`/session/device/${id}`)}
                         >
                             Start session now
                         </button>
-                        <Link to={`/book/device/${id}`} className={secondaryBtn}>
+                        <button
+                            className={secondaryBtn}
+                            onClick={() => requireAuth(`/book/device/${id}`)}
+                        >
                             Book a time slot
-                        </Link>
+                        </button>
                     </div>
                 </div>
 
