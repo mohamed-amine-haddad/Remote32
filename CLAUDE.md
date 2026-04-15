@@ -1,99 +1,132 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-**Remote32** is a remote device management and debugging system targeting STM32 microcontrollers. It allows developers to manage, flash, and debug STM32 boards remotely over the network — from any PC — without physical access to the hardware.
-
-The system consists of three layers:
-- **Embedded layer**: STM32 boards connected to a Raspberry Pi running OpenOCD, acting as the debug probe gateway
-- **Backend layer**: FastAPI server handling device management, serial communication, and bridging the embedded layer to the web
-- **Frontend layer**: React web UI for monitoring and managing connected devices
-
-The project is currently in early scaffold stage.
+Guidance for Claude Code when working in this repository.
 
 ---
 
-## Embedded Systems Layer (Hardware Side)
+## Project
 
-> **Context for Claude Code:** This layer lives outside the repository but is tightly coupled to the backend. Understanding it is essential for working on device routers, services, and any GDB/OpenOCD integration code.
+**Remote32** — web-based remote lab platform. Students upload, flash, and debug
+code on real STM32 microcontrollers connected to a Raspberry Pi, from their own
+computer. Developed as a Projet de Fin d'Année (PFA).
 
-### Hardware Setup
-
-- **Target MCU**: STM32 Nucleo series
-- **Debug probe**: ST-Link v2 connected to the Raspberry Pi via USB
-- **Host gateway**: Raspberry Pi (hostname: `retroboy`, user: `retroboy69`)
-- **Developer machine**: Windows PC running STM32CubeIDE v1.18
-
-### Software Stack on the Raspberry Pi
-
-- **OpenOCD**: Exposes a GDB server on port `3333` and a telnet interface on port `4444`
-- **GDB client**: `arm-none-eabi-gdb` (also bundled inside STM32CubeIDE's plugins folder on the PC side)
-- **OpenOCD config**: `~/openocd.cfg` on the Raspberry Pi
-
-### OpenOCD Configuration Notes
-
-The `openocd.cfg` uses:
-- `source [find interface/stlink-v2.cfg]` (via a shim, since newer OpenOCD versions use `stlink.cfg`)
-- `source [find target/stm32xxx.cfg]` — **not** `stm32f1x.cfg`
-
-
-### Remote Debugging Workflow
-
-1. Start OpenOCD on the Pi: `openocd -f ~/openocd.cfg`
-2. OpenOCD binds GDB server on `retroboy:3333`
-3. Developer connects via STM32CubeIDE (mode: **Connect to remote GDB server**, target: `retroboy:3333`) or manually via `arm-none-eabi-gdb.exe` with `target remote retroboy:3333`
-4. Flash and debug the STM32 remotely over the network
-
-### Backend Integration Points
-
-The backend communicates with the Raspberry Pi to:
-- Trigger or restart OpenOCD sessions
-- Relay GDB server availability status to the frontend
-- (Future) stream OpenOCD telnet output for live device status
+**Status:** early UI prototype, backend just started.
 
 ---
 
-## Backend
+## Repository structure
+remote32/
+├── backend/
+│   ├── main.py
+│   ├── models.py
+│   ├── routers/          # auth.py, devices.py, applications.py, bookings.py, admin.py
+│   ├── services/         # session_manager, openocd_manager, serial_manager, config_loader
+│   ├── configs/
+│   │   ├── devices/      # hardware descriptor JSON files
+│   │   └── applications/ # application descriptor JSON files
+│   └── requirements.txt
+├── frontend/
+│   └── src/
+│       ├── pages/
+│       ├── components/
+│       ├── hooks/
+│       ├── api/
+├── nginx/
+│   └── remote32.conf
+└── .env.example
 
-**Stack:** FastAPI, SQLModel (ORM over SQLAlchemy), Alembic (migrations), PySerial (serial device communication), python-jose (JWT auth), Pydantic v2, Uvicorn.
+---
 
-**Entry point:** `backend/main.py`
+## How to run
 
-**Run the backend:**
+**Backend:**
 ```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
+# From repo root — always activate venv first
+venv\Scripts\activate
+uvicorn backend.main:app --reload
 ```
 
-**Intended structure:**
-- `routers/` — FastAPI routers, split by domain (`applications/`, `devices/`)
-- `services/` — Business logic layer
-- `configs/applications/` and `configs/devices/` — Static or runtime config files per domain
-
-### Device Domain Notes
-
-The `devices` domain maps directly to physical STM32 boards connected through the Raspberry Pi gateway. Each device record should track:
-- Connection status (is OpenOCD running and GDB port reachable?)
-- Target chip family (e.g., `stm32f4`)
-- Gateway host (e.g., `retroboy`) and GDB port (default `3333`)
-- ST-Link probe identifier if multiple probes are connected
-
-PySerial is used for any UART/serial communication with the STM32 (e.g., debug output over USART). Serial port paths on the Pi follow the pattern `/dev/ttyUSB0` or `/dev/ttyACM0`.
+**Frontend:**
+```bash
+cd frontend
+npm run dev
+```
 
 ---
 
-## Frontend
+## Tech stack
 
-**Structure scaffold:** `src/` contains `api/`, `components/`, `hooks/`, `pages/`, `i18n/` — no framework config file exists yet (no `package.json`).
+**Backend:** FastAPI · SQLModel · SQLite · Alembic · python-jose (JWT) · pyserial · Uvicorn
 
-The frontend is intended to provide:
-- A device dashboard showing connected STM32 boards and their status
-- Controls to trigger remote actions (flash, reset, start/stop debug session)
-- Log streaming for OpenOCD and serial output
+**Frontend:** React (Vite) · Tailwind CSS v4 · react-router-dom · clsx · react-calendar
+
+**Infrastructure:** nginx (reverse proxy) · OpenOCD (GDB server + STM32 flashing) · Raspberry Pi OS
 
 ---
 
-## Architecture
+## Tool versions (Windows 11 dev machine)
+
+python 3.11.9 pip 26.0.1
+node v20.20.2 npm 10.8.2
+git 2.45.1
+openocd 0.12.0+dev-00645-g49ef1d010 (STMicroelectronics fork)
+tailwindcss 4.2.2 vite 8.0.7
+
+---
+
+## Hardware context
+
+- **Pi hostname:** `retroboy` · **user:** `retroboy69`
+- **OpenOCD** runs on the Pi, exposes GDB server on port `3333`, telnet on `4444`
+- **STM32CubeIDE** on the developer's PC connects to `retroboy:3333`
+- **Serial:** control STM32s communicate via UART over `/dev/ttyUSB0` (or `/dev/ttyACM0`)
+- **Camera:** connected to Pi, streamed via nginx MJPEG proxy
+
+---
+
+## Key domain concepts
+
+**Device** — one STM32 exposed as a remote GDB server. Users connect STM32CubeIDE to
+the IP:port provided by the platform.
+
+**Application** — one main device (same as above) + one or more control devices.
+Control devices are flashed automatically at session start. The user can switch
+their `.elf` firmware from a dropdown during the session. Each `.elf` has a
+button panel defined in the application JSON config — buttons send UART commands
+via pyserial to the control STM32.
+
+**Session** — time-bounded access to a device or application. Can be booked in
+advance (calendar + duration) or started immediately (fixed admin-set duration).
+Conflict prevention is enforced at the database level (overlapping reservation
+constraint) and at the session level (async lock).
+
+---
+
+## Auth
+
+JWT issued on login/register, sent as **httpOnly cookie** (not localStorage).
+"Remember me" extends cookie `max_age` to 30 days. Two roles: `user` and `admin`.
+
+---
+
+## Conventions
+
+- **Indentation:** 4 spaces everywhere — Python and JavaScript
+- **Branch:** `ui/prototype` for frontend work · `main` is stable
+- **Commit style:** `feat:` `fix:` `chore:` prefixes
+- **Tailwind:** define design tokens in `frontend/src/index.css` under `@theme`.
+  No `tailwind.config.js`. Extract class strings into named `const` variables —
+  never write long `className` strings inline in JSX
+- **No `@apply`** — do not use Tailwind's `@apply` directive
+- **Styling:** Neobrutalism — `border-2 border-black`, `shadow-nb` (4px offset, no blur), `rounded-none`, accent color `#FFD200`, navy `#03234B`
+
+---
+
+## What NOT to do
+
+- Do not install or suggest `tailwind.config.js` — the project uses Tailwind v4 CSS-first configuration via `@theme` in `index.css`
+- Do not use `@tailwind base/components/utilities` — those are Tailwind v3 syntax
+- Do not commit the `venv/` folder, `.env` file, `*.db` files, or `frontend/dist/`
+- Do not use `localStorage` or `sessionStorage` for auth — JWT lives in httpOnly cookies
+- Do not add architecture-specific code — backend must run identically on Windows 11 (dev) and Raspberry Pi OS (production)
+- Do not commit in main.
