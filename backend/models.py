@@ -1,5 +1,6 @@
 from sqlmodel import Field, SQLModel
 from typing import Optional
+from datetime import datetime
 
 # Stm32 board Model
 class Board(SQLModel, table = True):
@@ -15,3 +16,20 @@ class Board(SQLModel, table = True):
     openocd_pid : Optional[int] = Field(default = None)
 
 
+class DeviceSession(SQLModel, table=True):
+    __tablename__ = "device_session"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    board_id: int = Field(foreign_key="board.id")
+    start_time: datetime
+    end_time: datetime
+    status: str  # reserved | active | ended | cancelled
+
+
+class ApplicationSession(SQLModel, table=True):
+    __tablename__ = "application_session"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    target_board_id: int = Field(foreign_key="board.id")
+    control_board_id: int = Field(foreign_key="board.id")
+    start_time: datetime
+    end_time: datetime
+    status: str  # reserved | active | ended | cancelled

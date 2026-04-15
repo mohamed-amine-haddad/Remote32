@@ -25,6 +25,7 @@ import os
 # inserting at 0 makes Python search backend/ first when importing
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+import sqlmodel
 from sqlmodel import SQLModel
 import models  # noqa: F401 — importing models registers Board into SQLModel.metadata
 
