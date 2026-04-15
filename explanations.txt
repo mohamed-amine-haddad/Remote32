@@ -431,3 +431,110 @@ Changes made:
    fire, so if the device is occupied the button does nothing -- correct.
 
 =======================================================================
+
+
+=======================================================================
+  ADDENDUM -- database.py __main__ fix (2026-04-15)
+=======================================================================
+
+ERROR: "no such table: application_session" when running seed.py.
+
+ROOT CAUSE (two compounding issues):
+
+1. No __main__ block in database.py.
+   Running `python database.py` as a script only defines functions and
+   creates the engine object -- it exits without ever calling
+   create_db_and_tables(). So no tables were created.
+
+2. SQLModel.metadata was empty even if create_all had been called.
+   SQLModel.metadata is a global registry. A model class (Board, User,
+   etc.) only registers itself when its module is imported. database.py
+   never imports models, so metadata had zero tables to create.
+   In the FastAPI app this works because the routers import the models
+   before startup runs create_db_and_tables(). As a standalone script,
+   nothing triggers those imports.
+
+FIX: Added to database.py:
+
+    if __name__ == "__main__":
+        import models   # populates SQLModel.metadata with all tables
+        create_db_and_tables()
+        print("Database and tables created successfully.")
+
+The `import models` line imports backend/models.py (works because you
+run from inside the backend/ directory). This registers Board, User,
+DeviceSession, and ApplicationSession into metadata before create_all
+is called.
+
+HOW TO RUN (from inside backend/):
+    cd backend
+    python database.py   -> creates backend/remote32.db with all tables
+    python seed.py       -> inserts sample data
+
+=======================================================================
+
+
+=======================================================================
+  ADDENDUM -- 500 error on /auth/register (2026-04-15)
+=======================================================================
+
+ERROR: "no such table: user" when calling POST /auth/register via Swagger.
+
+ROOT CAUSE (three compounding problems):
+
+1. lifespan silences on_event("startup").
+   main.py defined both a lifespan context manager AND @app.on_event("startup").
+   In FastAPI, when a lifespan is passed to FastAPI(), it takes full control
+   of the application lifecycle. The @app.on_event handlers are silently
+   ignored -- they simply never fire. So create_db_and_tables() was never
+   called when the server started.
+
+2. Relative DATABASE_URL resolves against CWD, not the backend/ folder.
+   DATABASE_URL was "sqlite:///./remote32.db". The dot means current working
+   directory at runtime. uvicorn is launched from the repo root
+   (uvicorn backend.main:app), so the DB was created at root/remote32.db,
+   not backend/remote32.db. The DB built with python database.py (run from
+   inside backend/) was completely ignored by the running server.
+
+3. Not all models were imported in main.py.
+   main.py only imported auth_router, which only uses the User model.
+   Board, DeviceSession, and ApplicationSession were never imported in the
+   app startup path, so they were absent from SQLModel.metadata.
+   Even if create_db_and_tables() had been called, those tables would not
+   have been created.
+
+FIXES APPLIED:
+
+database.py -- absolute DB path:
+    from pathlib import Path
+    _DB_PATH = Path(__file__).parent / "remote32.db"
+    DATABASE_URL = f"sqlite:///{_DB_PATH}"
+  Path(__file__).parent is always the backend/ directory, regardless of
+  where uvicorn or python is launched from.
+
+main.py -- removed on_event, moved call into lifespan, import all models:
+    import backend.models          # registers all 4 tables into metadata
+    @asynccontextmanager
+    async def lifespan(app):
+        create_db_and_tables()     # called before the server accepts requests
+        yield
+
+  "import backend.models" ensures Board, DeviceSession, and ApplicationSession
+  are all registered before create_all runs, so every table gets created.
+  The dead @app.on_event("startup") was removed to avoid confusion.
+
+Also deleted the stale empty remote32.db from the repo root.
+
+HOW TO VERIFY THE FIX:
+  1. Delete backend/remote32.db if it exists (start fresh).
+  2. Run: uvicorn backend.main:app --reload  (from repo root)
+  3. Terminal should show "Application startup complete." with no errors.
+  4. backend/remote32.db should now exist and contain the tables.
+     Check: sqlite3 backend/remote32.db ".tables"
+     Expected output: application_session  board  devicesession  user
+  5. POST /auth/register in Swagger -> should return 201, not 500.
+  6. No new problems introduced: create_db_and_tables uses CREATE TABLE IF
+     NOT EXISTS, so running it on an existing DB with data is safe -- it
+     skips tables that already exist and never deletes data.
+
+=======================================================================
