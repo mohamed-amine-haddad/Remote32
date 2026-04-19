@@ -44,6 +44,7 @@ if __name__ == "__main__":
     from sqlmodel import Session
 
     with Session(engine) as session:
+        """
         
         board = Board(
             name = "testBoard",
@@ -62,14 +63,15 @@ if __name__ == "__main__":
         # --- GET BY ID ---
         fetched = get_by_id(session, 2)
         print("Fetched by ID:", fetched)
-        
+        """
         
         # --- UPDATE ---
-        updated = update(session, 3, {"status": "busy"})
+        updated = update(session, 1, {"openocd_pid": 7058})
         print("Updated status:", updated.status)
 
+        """
         # --- DELETE ---
         deleted = delete(session, 3)
         print("Deleted:", deleted)
-
+        """
         

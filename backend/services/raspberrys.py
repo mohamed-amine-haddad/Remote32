@@ -44,7 +44,6 @@ if __name__ == "__main__":
     from database import engine
 
     with Session(engine) as session:
-        """
         pi = RaspberryPi(host="testhost", user="testuser", password="testpass")
         created = create(session, pi)
         print("Created:", created)
@@ -58,7 +57,6 @@ if __name__ == "__main__":
         updated = update(session, created.id, {"user": "newuser"})
         print("Updated user:", updated.user)
 
-        """
         deleted = delete(session, 2)
         print("Deleted:", deleted)
         
