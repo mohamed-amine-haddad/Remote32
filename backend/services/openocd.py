@@ -41,10 +41,18 @@ def start_debug_session(board_id : int) -> int :
     with Session(engine) as session:
         board = get_board_by_id(session, board_id)
 
+    # Check if the specified board is running
     if is_running(board) :
         raise HTTPException(status_code=409, detail="Board already has an active session")
-        
+    
+    # Check if the board's gdb port is already in use
     client = _ssh(board)
+    
+    stdin, stdout, stderr = client.exec_command(f"ss -tlnp | grep :{board.gdb_port}")
+    port_in_use = stdout.read().decode().strip()
+    if port_in_use:
+      raise HTTPException(status_code=409, detail="GDB port already in use")
+        
     config_file_path = os.getenv("CONFIG_PATH") + board.config_file
 
     stdin, stdout, stderr = client.exec_command(f"nohup openocd -f {config_file_path} > /tmp/openocd_{board_id}.log 2>&1 & echo $!")
