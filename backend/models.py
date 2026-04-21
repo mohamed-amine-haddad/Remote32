@@ -11,7 +11,7 @@ class Board(SQLModel, table = True):
     gdb_port : int = Field(unique = True)
     telnet_port : int = Field(unique = True)
     tcl_port : int = Field(unique = True)
-    status : str = Field(default = "idle")
+    status : str = Field(default = "idle") # idle | running
     pi_id : int = Field(foreign_key = "raspberrypi.id")
     openocd_pid : Optional[int] = Field(default = None)
 
@@ -23,6 +23,9 @@ class DeviceSession(SQLModel, table=True):
     start_time: datetime
     end_time: datetime
     status: str  # reserved | active | ended | cancelled
+
+    def __str__(self):
+        return f"DeviceSession(id={self.id}, board={self.board_id}, {self.start_time} -> {self.end_time}, status={self.status})"
 
 
 class ApplicationSession(SQLModel, table=True):
