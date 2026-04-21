@@ -46,18 +46,14 @@ def start_debug_session(board_id : int) -> bool :
         
     client = _ssh(board)
     config_file_path = os.getenv("CONFIG_PATH") + board.config_file
-    
-    print ("path : ", config_file_path)
 
     stdin, stdout, stderr = client.exec_command(f"nohup openocd -f {config_file_path} > /tmp/openocd_{board_id}.log 2>&1 & echo $!")
 
     openocd_pid = stdout.readline().strip()
-    print("PID :", openocd_pid)
 
     with Session(engine) as session:
         update_board(session, board_id, {"status" : "running", "openocd_pid" : openocd_pid})
-       
-    print (f"updated status : running \nupdated pid : {openocd_pid}")
+
     return board.gdb_port
 
 
