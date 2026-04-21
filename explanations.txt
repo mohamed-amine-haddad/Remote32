@@ -1,0 +1,540 @@
+=======================================================================
+  Remote32 -- Authentication Implementation
+  Branch: auth
+  Date: 2026-04-15
+=======================================================================
+
+
+---------------------------------------------------------------------
+  PLAN: FILES CREATED / MODIFIED
+---------------------------------------------------------------------
+
+BACKEND (new files)
+  backend/__init__.py          -- makes backend/ a Python package
+  backend/routers/__init__.py  -- makes routers/ a Python package
+  backend/models.py            -- User SQLModel table definition
+  backend/database.py          -- SQLite engine, get_session dependency
+  backend/dependencies.py      -- get_current_user, require_admin
+  backend/routers/auth.py      -- /auth/register, /auth/login, /auth/logout, /auth/me
+
+BACKEND (modified)
+  backend/main.py              -- added CORS middleware, startup hook, auth router
+  backend/requirements.txt     -- rewrote as clean UTF-8, added passlib + bcrypt
+
+OTHER (new)
+  .env.example                 -- template for SECRET_KEY env variable
+
+FRONTEND (new files)
+  frontend/src/api/auth.js                -- fetch wrappers for all auth endpoints
+  frontend/src/contexts/AuthContext.jsx   -- global auth state + useAuth() hook
+  frontend/src/components/ProtectedRoute.jsx -- redirects unauthenticated users to /login
+
+FRONTEND (modified)
+  frontend/vite.config.js                 -- added Vite proxy: /api -> http://localhost:8000
+  frontend/src/main.jsx                   -- wrapped routes in AuthProvider, added ProtectedRoute
+  frontend/src/pages/LoginPage.jsx        -- wired handleSubmit to useAuth().login
+  frontend/src/pages/RegisterPage.jsx     -- wired handleSubmit to useAuth().register
+  frontend/src/components/Navbar.jsx      -- dynamic: shows user name + logout when authenticated
+
+
+---------------------------------------------------------------------
+  REASONING AND DECISIONS
+---------------------------------------------------------------------
+
+1. WHY httpOnly COOKIES instead of localStorage?
+
+   localStorage is accessible by JavaScript, including injected scripts.
+   If an attacker achieves XSS (Cross-Site Scripting), they can steal any
+   token stored in localStorage and impersonate the user indefinitely.
+
+   httpOnly cookies are invisible to JavaScript. Even if XSS occurs, the
+   attacker cannot read the cookie. The browser sends it automatically with
+   every same-origin request. This is the recommended approach for
+   sensitive credentials in web applications.
+
+2. WHY python-jose FOR JWT?
+
+   python-jose is already listed in requirements.txt and is the most common
+   FastAPI JWT library. It handles token encoding, decoding, and expiry
+   verification cleanly. The alternative (PyJWT) is equally valid but
+   python-jose was already a dependency.
+
+3. WHY passlib + bcrypt FOR PASSWORD HASHING?
+
+   Passwords must never be stored in plain text or with weak hashing (MD5,
+   SHA-1). bcrypt is specifically designed to be slow and resistant to
+   brute-force and rainbow-table attacks. passlib provides a clean Python
+   interface to bcrypt. The "deprecated=auto" option means old hashes
+   are re-hashed transparently if you ever switch algorithms.
+
+4. WHY THE VITE PROXY?
+
+   In development, the frontend runs on localhost:5173 and the backend on
+   localhost:8000. These are different origins (different port = different
+   origin). Browsers block cookies with samesite=lax across different
+   origins in the same "site". To work around this without requiring
+   HTTPS (which is needed for samesite=none), we use Vite's built-in
+   proxy: any request starting with /api is transparently forwarded to
+   localhost:8000, stripping the /api prefix. From the browser's
+   perspective, all requests go to localhost:5173 -- same origin -- so
+   the cookie flows correctly. In production, nginx does the same job.
+
+5. WHY samesite="lax" AND secure=False?
+
+   samesite=lax protects against CSRF (Cross-Site Request Forgery) for
+   most cases: cookies are sent on same-origin requests and on top-level
+   navigation from other sites, but not on cross-site AJAX. This is the
+   right default for a web app.
+
+   secure=False is intentional for development (HTTP). In production,
+   set secure=True -- this requires HTTPS, which the nginx config should
+   provide.
+
+6. WHY SESSION COOKIE vs PERSISTENT COOKIE?
+
+   Without max_age, a cookie is a "session cookie": the browser deletes it
+   when closed. "Remember me" sets max_age to 30 days, which persists the
+   cookie across browser restarts. The token itself only lives 30 minutes
+   (ACCESS_TOKEN_EXPIRE_MINUTES), so "remember me" currently makes the
+   cookie persistent but the token still expires. For full "remember me"
+   you would need token refresh logic -- that is intentionally left for later.
+
+7. WHY AuthProvider WRAPS THE ROUTER?
+
+   The AuthContext is needed inside <Routes> (for ProtectedRoute and
+   Navbar), so AuthProvider must be an ancestor of both. It sits inside
+   BrowserRouter so that hooks like useNavigate work inside the context
+   if ever needed.
+
+8. WHY REGISTER REDIRECTS TO LOGIN (not auto-login)?
+
+   The /auth/register endpoint does not set a cookie -- it just creates the
+   account. This is a deliberate simplification. Auto-login after register
+   would require either: (a) the register endpoint also sets a cookie, or
+   (b) the frontend calls login right after. For now, the user registers
+   and is sent to the login page, which makes the flow explicit and easy
+   to reason about.
+
+9. WHY get_current_user READS FROM COOKIE, NOT Authorization HEADER?
+
+   httpOnly cookies are sent automatically by the browser. Reading from a
+   Cookie header is exactly how server-side session auth works with
+   cookies. The FastAPI Cookie() dependency extracts it cleanly. Bearer
+   tokens in Authorization headers are the mobile/SPA localStorage pattern
+   -- we are not using that here.
+
+10. WHY SQLModel (not raw SQLite)?
+
+    SQLModel combines SQLAlchemy ORM + Pydantic validation in one model
+    class. create_db_and_tables() at startup creates the User table
+    automatically -- no need to run a separate SQL script or migration for
+    the auth table. The existing init_db.py for the boards table (raw
+    sqlite3) is unrelated and untouched.
+
+
+---------------------------------------------------------------------
+  HOW TO TEST -- STEP BY STEP
+---------------------------------------------------------------------
+
+STEP 0 -- PREREQUISITES
+
+  a) Make sure you are on the auth branch:
+       git branch
+       Expected output: * auth
+
+  b) Install the new Python dependency (from repo root, venv activated):
+       venv\Scripts\activate
+       pip install passlib==1.7.4 bcrypt==4.2.0
+
+  c) Create a .env file from the example:
+       copy .env.example .env
+     Then open .env and set a value for SECRET_KEY (or leave the default
+     for local development -- it will need to be changed before production).
+
+
+STEP 1 -- START THE BACKEND
+
+  From the repo root (venv activated):
+    uvicorn backend.main:app --reload
+
+  What you should see:
+    INFO: Application startup complete.
+    INFO: Uvicorn running on http://127.0.0.1:8000
+
+  What to verify:
+  - No import errors or tracebacks in the terminal.
+  - The file remote32.db is created (or already exists from before).
+  - Open http://localhost:8000/docs in your browser.
+    You should see the Swagger UI with an "auth" section containing:
+      POST /auth/register
+      POST /auth/login
+      POST /auth/logout
+      GET  /auth/me
+
+
+STEP 2 -- TEST THE BACKEND ENDPOINTS DIRECTLY (Swagger)
+
+  a) Register a user
+       In Swagger: POST /auth/register > Try it out
+       Body: { "name": "Test User", "email": "test@test.com", "password": "secret123" }
+       Expected: HTTP 201, body with { id, name, email, role: "user" }
+       Report back: did it return 201?
+
+       Try again with the same email.
+       Expected: HTTP 409 "Email already registered"
+       Report back: did it return 409?
+
+  b) Login
+       In Swagger: POST /auth/login > Try it out
+       Body: { "email": "test@test.com", "password": "secret123", "remember_me": false }
+       Expected: HTTP 200, body with { id, name, email, role }
+       In the response headers, look for: Set-Cookie: access_token=...
+       Report back: did you see the Set-Cookie header?
+
+       Try wrong password.
+       Expected: HTTP 401 "Invalid credentials"
+       Report back: did it return 401?
+
+  c) Logout
+       In Swagger: POST /auth/logout > Try it out
+       Expected: HTTP 200, body { "message": "Logged out" }
+       Report back: did it return 200?
+
+
+STEP 3 -- START THE FRONTEND
+
+  In a second terminal:
+    cd frontend
+    npm run dev
+
+  Open http://localhost:5173 in your browser.
+
+
+STEP 4 -- TEST THE FULL FLOW IN THE BROWSER
+
+  a) CHECK UNAUTHENTICATED STATE
+     - Open the home page (http://localhost:5173).
+     - Navbar should show "Login" and "Register" buttons.
+     - Navigate to http://localhost:5173/devices
+       Expected: you are redirected to /login.
+     - Navigate to http://localhost:5173/profile
+       Expected: you are redirected to /login.
+     Report back: did the redirects work?
+
+  b) REGISTER
+     - Click "Register" in the navbar.
+     - Fill in: name, email, password, confirm password.
+     - Click "Create account".
+       Expected: you are redirected to /login (no error message).
+     - Try again with the same email.
+       Expected: red error text "Email already registered".
+     - Try mismatched passwords.
+       Expected: red error text "Passwords do not match" (instant, no server call).
+     Report back: did registration work? Did error messages show?
+
+  c) LOGIN
+     - Fill in the email and password from step (b).
+     - Click "Log in".
+       Expected: redirected to /.
+       Navbar now shows your name and a "Log out" button.
+     - Try wrong password.
+       Expected: red error text "Invalid credentials".
+     Report back: did login work? Did the navbar update?
+
+  d) VERIFY THE COOKIE
+     - In Chrome: DevTools (F12) -> Application tab -> Cookies -> http://localhost:5173
+     - You should see a cookie named: access_token
+     - Check these properties:
+         HttpOnly: should be checked/true
+         SameSite: Lax
+         Secure: unchecked/false (dev environment)
+         Expires/Max-Age: "Session" (or a date 30 days out if Remember me was checked)
+     Report back: what are the cookie properties? Is HttpOnly true?
+
+  e) SESSION PERSISTENCE
+     - While logged in, press F5 to refresh the page.
+       Expected: still logged in, navbar still shows your name.
+     Report back: did the session survive the refresh?
+
+  f) REMEMBER ME
+     - Log out first.
+     - Log in again, this time check "Remember me for 30 days".
+     - Check the cookie in DevTools.
+       Expected: Expires is now a date ~30 days from now (not "Session").
+     Report back: did the Expires date appear?
+
+  g) LOGOUT
+     - Click "Log out" in the navbar.
+       Expected: redirected to /login, navbar shows Login/Register again.
+     - In DevTools Cookies: access_token should be gone.
+     - Navigate to /devices: should redirect to /login.
+     Report back: did logout clear the cookie? Did the redirect work?
+
+  h) BROWSER CONSOLE
+     - Open DevTools Console tab.
+     - After each action (register, login, logout) check for red errors.
+     Report back: any console errors?
+
+
+---------------------------------------------------------------------
+  WHAT TO REPORT BACK TO ME
+---------------------------------------------------------------------
+
+After running all tests, tell me:
+
+  1. Did the backend start without errors? (paste any traceback if not)
+  2. Did Swagger show the /auth/* routes?
+  3. Did register return 201?
+  4. Did login return 200 and show Set-Cookie in the response header?
+  5. Is the cookie HttpOnly=true in DevTools?
+  6. Does refreshing the page keep you logged in?
+  7. Do protected routes (/devices, /profile) redirect to /login when logged out?
+  8. Any error messages in the browser console? Paste them exactly.
+  9. Any error messages in the terminal (backend)? Paste them exactly.
+
+
+---------------------------------------------------------------------
+  KNOWN LIMITATIONS (intentional for now)
+---------------------------------------------------------------------
+
+- No token refresh: the JWT expires in 30 minutes. After that, the next
+  API call will fail with 401 and the user must log in again.
+  A refresh token system is a future task.
+
+- secure=False: must be set to True (and served over HTTPS) before
+  deploying to production on the Raspberry Pi.
+
+- No email verification: any email address is accepted.
+
+- Admins must be promoted manually via SQLite:
+    sqlite3 remote32.db "UPDATE user SET role='admin' WHERE email='you@example.com';"
+
+=======================================================================
+
+
+=======================================================================
+  ADDENDUM -- Test results follow-up + route changes (2026-04-15)
+=======================================================================
+
+
+---------------------------------------------------------------------
+  ANSWERS TO TEST RESULTS
+---------------------------------------------------------------------
+
+Q: In Swagger, POST /auth/login returned 200 but the Set-Cookie header
+   was not visible in the Response headers panel. Is this a bug?
+
+A: No, this is a known Swagger UI limitation and NOT a bug.
+
+   Swagger UI runs its own JavaScript HTTP client inside the browser.
+   The browser automatically hides Set-Cookie response headers from
+   JavaScript for security reasons -- this is part of the browser's
+   "forbidden response headers" spec. Since Swagger reads response
+   headers via JS, it cannot show Set-Cookie regardless of what the
+   server sends.
+
+   Your Step 4d result confirms the cookie IS working correctly: you
+   found access_token in DevTools > Application > Cookies with the right
+   properties (HttpOnly=true, SameSite=Lax). That is the ground truth.
+   The Swagger panel just cannot display Set-Cookie headers.
+
+   To verify Set-Cookie in raw form, use curl:
+     curl -i -X POST http://localhost:8000/auth/login ^
+       -H "Content-Type: application/json" ^
+       -d "{\"email\":\"test@test.com\",\"password\":\"secret123\",\"remember_me\":false}"
+   The terminal output will show all response headers including Set-Cookie.
+
+
+Q: When refreshing the page while logged out, the browser console shows
+   a 401 error from GET /api/auth/me twice. Is this normal?
+
+A: Yes, this is completely normal and expected behavior.
+
+   When the app loads, AuthContext always calls GET /api/auth/me to check
+   whether there is a valid session cookie. If the user is not logged in,
+   the server returns 401 (correct -- there is no cookie). The app handles
+   this cleanly: the .catch() sets user=null and loading=false, so the UI
+   stays on the public page with no redirect.
+
+   The 401 appears twice because React StrictMode deliberately mounts
+   components twice in development to help catch side-effect bugs. This
+   is a development-only behavior; it does not happen in production builds.
+
+   The console error is logged by the browser automatically for any
+   non-2xx HTTP response -- it is a browser feature, not an app error.
+   The error is purely informational; nothing is broken.
+
+   Summary: 401 in console while NOT logged in = everything working correctly.
+
+
+---------------------------------------------------------------------
+  ROUTE ACCESS CHANGES
+---------------------------------------------------------------------
+
+Context: user requested that browsing devices/applications be open to
+everyone, but booking and starting sessions require authentication.
+
+Files changed:
+  frontend/src/main.jsx                        -- route protection rules
+  frontend/src/pages/DeviceDetailPage.jsx      -- Start/Book buttons
+  frontend/src/pages/ApplicationDetailPage.jsx -- Start/Book buttons
+
+Changes made:
+
+1. ROUTES NOW PUBLIC (removed ProtectedRoute wrapper):
+     /devices
+     /applications
+     /devices/:id
+     /applications/:id
+
+   Anyone, logged in or not, can browse the catalogue and read
+   descriptors. Students should be able to see what is available before
+   deciding to sign up.
+
+2. ROUTES STILL PROTECTED (ProtectedRoute kept):
+     /book/device/:id
+     /book/application/:id
+     /session/device/:id
+     /session/application/:id
+     /profile
+
+3. AUTH-GATING ON THE DETAIL PAGE BUTTONS:
+
+   The "Start session now" and "Book a time slot" buttons now use a
+   requireAuth(destination) helper. Logic:
+
+     - User IS logged in  -> navigate directly to the destination.
+     - User is NOT logged in -> navigate to /login.
+
+   WHY a button instead of <Link> for Book?
+   Previously "Book a time slot" was a <Link to="/book/...">. With auth
+   gating, the action depends on runtime state (user), so it must be a
+   button with an onClick handler. A <Link> always navigates immediately;
+   it cannot conditionally redirect. The button uses the same className
+   as the old link so the visual appearance is identical.
+
+   WHY not just let ProtectedRoute handle the redirect?
+   ProtectedRoute works, but it produces a visible intermediate render:
+   the user clicks Book, BookingPage mounts, ProtectedRoute renders null
+   while loading, then redirects to /login. With the client-side check,
+   the redirect is instant on click with no intermediate page render.
+
+4. "START SESSION NOW" NOW NAVIGATES TO THE SESSION PAGE:
+
+   Previously the Start button had no onClick -- it was a dead button.
+   Now:
+     DeviceDetailPage      -> /session/device/:id
+     ApplicationDetailPage -> /session/application/:id
+
+   The existing disabled logic (opacity 0.4, cursor not-allowed when
+   status != 'free') is preserved. A disabled button's onClick does not
+   fire, so if the device is occupied the button does nothing -- correct.
+
+=======================================================================
+
+
+=======================================================================
+  ADDENDUM -- database.py __main__ fix (2026-04-15)
+=======================================================================
+
+ERROR: "no such table: application_session" when running seed.py.
+
+ROOT CAUSE (two compounding issues):
+
+1. No __main__ block in database.py.
+   Running `python database.py` as a script only defines functions and
+   creates the engine object -- it exits without ever calling
+   create_db_and_tables(). So no tables were created.
+
+2. SQLModel.metadata was empty even if create_all had been called.
+   SQLModel.metadata is a global registry. A model class (Board, User,
+   etc.) only registers itself when its module is imported. database.py
+   never imports models, so metadata had zero tables to create.
+   In the FastAPI app this works because the routers import the models
+   before startup runs create_db_and_tables(). As a standalone script,
+   nothing triggers those imports.
+
+FIX: Added to database.py:
+
+    if __name__ == "__main__":
+        import models   # populates SQLModel.metadata with all tables
+        create_db_and_tables()
+        print("Database and tables created successfully.")
+
+The `import models` line imports backend/models.py (works because you
+run from inside the backend/ directory). This registers Board, User,
+DeviceSession, and ApplicationSession into metadata before create_all
+is called.
+
+HOW TO RUN (from inside backend/):
+    cd backend
+    python database.py   -> creates backend/remote32.db with all tables
+    python seed.py       -> inserts sample data
+
+=======================================================================
+
+
+=======================================================================
+  ADDENDUM -- 500 error on /auth/register (2026-04-15)
+=======================================================================
+
+ERROR: "no such table: user" when calling POST /auth/register via Swagger.
+
+ROOT CAUSE (three compounding problems):
+
+1. lifespan silences on_event("startup").
+   main.py defined both a lifespan context manager AND @app.on_event("startup").
+   In FastAPI, when a lifespan is passed to FastAPI(), it takes full control
+   of the application lifecycle. The @app.on_event handlers are silently
+   ignored -- they simply never fire. So create_db_and_tables() was never
+   called when the server started.
+
+2. Relative DATABASE_URL resolves against CWD, not the backend/ folder.
+   DATABASE_URL was "sqlite:///./remote32.db". The dot means current working
+   directory at runtime. uvicorn is launched from the repo root
+   (uvicorn backend.main:app), so the DB was created at root/remote32.db,
+   not backend/remote32.db. The DB built with python database.py (run from
+   inside backend/) was completely ignored by the running server.
+
+3. Not all models were imported in main.py.
+   main.py only imported auth_router, which only uses the User model.
+   Board, DeviceSession, and ApplicationSession were never imported in the
+   app startup path, so they were absent from SQLModel.metadata.
+   Even if create_db_and_tables() had been called, those tables would not
+   have been created.
+
+FIXES APPLIED:
+
+database.py -- absolute DB path:
+    from pathlib import Path
+    _DB_PATH = Path(__file__).parent / "remote32.db"
+    DATABASE_URL = f"sqlite:///{_DB_PATH}"
+  Path(__file__).parent is always the backend/ directory, regardless of
+  where uvicorn or python is launched from.
+
+main.py -- removed on_event, moved call into lifespan, import all models:
+    import backend.models          # registers all 4 tables into metadata
+    @asynccontextmanager
+    async def lifespan(app):
+        create_db_and_tables()     # called before the server accepts requests
+        yield
+
+  "import backend.models" ensures Board, DeviceSession, and ApplicationSession
+  are all registered before create_all runs, so every table gets created.
+  The dead @app.on_event("startup") was removed to avoid confusion.
+
+Also deleted the stale empty remote32.db from the repo root.
+
+HOW TO VERIFY THE FIX:
+  1. Delete backend/remote32.db if it exists (start fresh).
+  2. Run: uvicorn backend.main:app --reload  (from repo root)
+  3. Terminal should show "Application startup complete." with no errors.
+  4. backend/remote32.db should now exist and contain the tables.
+     Check: sqlite3 backend/remote32.db ".tables"
+     Expected output: application_session  board  devicesession  user
+  5. POST /auth/register in Swagger -> should return 201, not 500.
+  6. No new problems introduced: create_db_and_tables uses CREATE TABLE IF
+     NOT EXISTS, so running it on an existing DB with data is safe -- it
+     skips tables that already exist and never deletes data.
+
+=======================================================================

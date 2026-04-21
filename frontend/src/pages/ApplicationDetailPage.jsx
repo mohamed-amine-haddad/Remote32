@@ -1,7 +1,8 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import StatusBadge from '../components/StatusBadge'
 import JsonRenderer from '../components/JsonRenderer'
+import { useAuth } from '../contexts/AuthContext'
 
 // Mock data
 const APPLICATIONS = {
@@ -75,7 +76,17 @@ const APPLICATIONS = {
 export default function ApplicationDetailPage() {
 
     const { id } = useParams()
+    const navigate = useNavigate()
+    const { user } = useAuth()
     const application = APPLICATIONS[id]
+
+    function requireAuth(destination) {
+        if (user) {
+            navigate(destination)
+        } else {
+            navigate('/login')
+        }
+    }
 
     const page = "min-h-screen bg-white font-body flex flex-col"
     const content = "flex-1 px-6 md:px-16 lg:px-32 py-12"
@@ -150,12 +161,16 @@ export default function ApplicationDetailPage() {
                             className={primaryBtn}
                             disabled={application.status !== 'free'}
                             style={application.status !== 'free' ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                            onClick={() => requireAuth(`/session/application/${id}`)}
                         >
                             Start session now
                         </button>
-                        <Link to={`/book/application/${id}`} className={secondaryBtn}>
+                        <button
+                            className={secondaryBtn}
+                            onClick={() => requireAuth(`/book/application/${id}`)}
+                        >
                             Book a time slot
-                        </Link>
+                        </button>
                     </div>
                 </div>
 

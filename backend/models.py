@@ -42,3 +42,10 @@ class RaspberryPi(SQLModel, table=True):
     host : str = Field(unique = True)
     user : str
     password : str
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    email: str = Field(unique=True, index=True)
+    hashed_password: str
+    role: str = Field(default="user")  # "user" or "admin"

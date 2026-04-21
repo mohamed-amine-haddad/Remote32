@@ -1,11 +1,24 @@
-from sqlmodel import create_engine, Session
+from pathlib import Path
+from sqlmodel import SQLModel, create_engine, Session
 
-DATABASE_URL = "sqlite:///./remote32.db"
+# Absolute path so the DB is always created inside backend/,
+# regardless of which directory uvicorn is launched from.
+_DB_PATH = Path(__file__).parent / "remote32.db"
+DATABASE_URL = f"sqlite:///{_DB_PATH}"
 
-# Create the connection to the SQLite file remote32.db
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
-# Creates a database session and hands it to FastAPI endpoints
+
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+
 def get_session():
     with Session(engine) as session:
         yield session
+
+
+if __name__ == "__main__":
+    import models  # registers Board, User, DeviceSession, ApplicationSession into metadata
+    create_db_and_tables()
+    print(f"Database created at: {_DB_PATH}")
