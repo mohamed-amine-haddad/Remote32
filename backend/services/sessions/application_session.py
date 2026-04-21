@@ -21,6 +21,10 @@ def get_by_control_board_id(session: Session, board_id: int) -> list[Application
     return session.exec(select(ApplicationSession).where(ApplicationSession.control_board_id == board_id)).all()
 
 
+def get_by_user_id(session: Session, user_id: int) -> list[ApplicationSession]:
+    return session.exec(select(ApplicationSession).where(ApplicationSession.user_id == user_id)).all()
+
+
 def get_by_status(session: Session, status: str) -> list[ApplicationSession]:
     return session.exec(select(ApplicationSession).where(ApplicationSession.status == status)).all()
 
@@ -61,6 +65,7 @@ if __name__ == "__main__":
 
         # --- CREATE ---
         new_session = ApplicationSession(
+            user_id=1,
             target_board_id=1,
             control_board_id=2,
             start_time=datetime(2026, 4, 21, 10, 0, 0),

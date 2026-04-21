@@ -17,6 +17,10 @@ def get_by_board_id(session: Session, board_id: int) -> list[DeviceSession]:
     return session.exec(select(DeviceSession).where(DeviceSession.board_id == board_id)).all()
 
 
+def get_by_user_id(session: Session, user_id: int) -> list[DeviceSession]:
+    return session.exec(select(DeviceSession).where(DeviceSession.user_id == user_id)).all()
+
+
 def get_by_status(session: Session, status: str) -> list[DeviceSession]:
     return session.exec(select(DeviceSession).where(DeviceSession.status == status)).all()
 
@@ -57,6 +61,7 @@ if __name__ == "__main__":
         
         # --- CREATE ---
         new_session = DeviceSession(
+            user_id=1,
             board_id=1,
             start_time=datetime(2026, 4, 21, 10, 0, 0),
             end_time=datetime(2026, 4, 21, 11, 0, 0),
