@@ -19,6 +19,7 @@ class Board(SQLModel, table = True):
 class DeviceSession(SQLModel, table=True):
     __tablename__ = "device_session"
     id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     board_id: int = Field(foreign_key="board.id")
     start_time: datetime
     end_time: datetime
@@ -31,6 +32,7 @@ class DeviceSession(SQLModel, table=True):
 class ApplicationSession(SQLModel, table=True):
     __tablename__ = "application_session"
     id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     target_board_id: int = Field(foreign_key="board.id")
     control_board_id: int = Field(foreign_key="board.id")
     start_time: datetime
