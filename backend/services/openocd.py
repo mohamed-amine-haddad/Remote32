@@ -37,7 +37,7 @@ def is_running(board : Board):
     client.close()
     return process_name == "openocd"
 
-def start_debug_session(board_id : int) -> bool :
+def start_debug_session(board_id : int) -> int :
     with Session(engine) as session:
         board = get_board_by_id(session, board_id)
 
