@@ -66,7 +66,7 @@ if __name__ == "__main__":
         """
         
         # --- UPDATE ---
-        updated = update(session, 1, {"status": "idle", "openocd_pid" : "None"})
+        updated = update(session, 2, {"status" : "idle", "openocd_pid": None})
         print("Updated status:", updated.status)
 
         """

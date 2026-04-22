@@ -18,8 +18,8 @@ from services.sessions.device_session import get_active_by_board_id, get_active_
 from services.openocd import is_running, is_port_in_use, launch_openocd, kill_openocd 
 
 
-
-# Start a debug session now if the time slot is available
+# Start a device session now if the time slot is available
+# One safety case : user has a reseved session that starts soon and tries to start another one
 def start_device_session(board_id : int, user_id : int, duration_minutes : int) -> int :
     with Session(engine) as session:
         board = get_board_by_id(session, board_id)
@@ -43,10 +43,6 @@ def start_device_session(board_id : int, user_id : int, duration_minutes : int) 
     # Check if User has other active sessions
     if active_user_session:
         raise HTTPException(status_code = 409, detail = "You can only have one active session at a time")
-        
-    # Check if user has a reserved session that overlaps with the requested time slot
-    # To be Implemented
-
 
     # If an upcoming reservation exists, cap the session duration to the remaining time (only if > 10 minutes)
     if time_until_next is not None:
@@ -68,6 +64,8 @@ def start_device_session(board_id : int, user_id : int, duration_minutes : int) 
         update_board(session, board_id, {"status" : "running", "openocd_pid" : openocd_pid})
 
     return  board.gdb_port
+
+
 
 if __name__ == "__main__":
     with Session(engine) as session:

@@ -14,7 +14,6 @@ from datetime import datetime, timedelta
 load_dotenv()
 from services.raspberrys import get_by_id as get_pi_by_id
 from services.devices import get_by_id as get_board_by_id, update as update_board
-#from services.devices import update as update_board
 from services.sessions.device_session import get_active_by_board_id, create as create_device_session
 
 # Opens and returns an SSH connection to the Pi that the board is connected to
@@ -61,14 +60,16 @@ def launch_openocd(board : Board) -> int:
     if not is_running_by_pid(openocd_pid, board):
         raise HTTPException(status_code=500, detail="OpenOCD failed to start")
 
+    """
     # Update openocd_pid in database
     with Session(engine) as session:
         update_board(session, board.id, {"status" : "running", "openocd_pid" : openocd_pid})
+    """
 
     return openocd_pid
 
 def kill_openocd(board : Board):
-    if not (is_running(board) == True):
+    if not is_running(board) == True:
         raise HTTPException(status_code = 409, detail = "Board does not have an active session")
     
     openocd_pid = board.openocd_pid

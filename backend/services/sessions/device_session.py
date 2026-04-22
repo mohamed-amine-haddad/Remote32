@@ -3,6 +3,7 @@ sys.path.insert(0, ".")
 
 from sqlmodel import Session, select
 from models import DeviceSession
+from datetime import datetime, timedelta
 
 
 def get_all(session: Session) -> list[DeviceSession]:
@@ -68,6 +69,21 @@ def delete(session: Session, device_session_id: int) -> bool:
     return True
 
 
+def get_time_until_next_reservation(session: Session, board_id: int) -> timedelta | None:
+    now = datetime.now()
+    next_reservation = session.exec(
+        select(DeviceSession)
+        .where(DeviceSession.board_id == board_id)
+        .where(DeviceSession.status == "reserved")
+        .where(DeviceSession.start_time > now)
+        .order_by(DeviceSession.start_time)
+    ).first()
+
+    if next_reservation is None:
+        return None
+    return next_reservation.start_time - now
+
+
 if __name__ == "__main__":
     from database import engine
     from sqlmodel import Session
@@ -101,6 +117,10 @@ if __name__ == "__main__":
         board_sessions = get_by_board_id(session, 1)
         print("Sessions for board 1:", board_sessions)
 
+        # --- GET BY USER ID ---
+        board_sessions = get_active_by_user_id(session, 1)
+        print("Sessions for user 1:", board_sessions)
+
         # --- GET BY STATUS ---
         reserved = get_by_status(session, "active")
         print("Active sessions:", reserved)
@@ -114,7 +134,10 @@ if __name__ == "__main__":
         print("Deleted:", deleted)
         """
 
-        # --- GET BY USER ID ---
-        board_sessions = get_active_by_user_id(session, 1)
-        print("Sessions for user 1:", board_sessions)
+        # --- DELETE ---
+        deleted = delete(session, 2)
+        print("Deleted:", deleted)
         
+        # --- UPDATE ---
+        updated = update(session, 1, {"start_time": datetime(2026, 4, 22, 16, 45, 0), "end_time" : datetime(2026, 4, 22, 17, 45, 0)})
+        print("Updated status:", updated.status)
