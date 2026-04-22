@@ -10,7 +10,7 @@ Guidance for Claude Code when working in this repository.
 code on real STM32 microcontrollers connected to a Raspberry Pi, from their own
 computer. Developed as a Projet de Fin d'Année (PFA).
 
-**Status:** early UI prototype, backend just started.
+**Status:** almost finished UI prototype, backend started but a bit messy.
 
 ---
 
@@ -129,5 +129,4 @@ JWT issued on login/register, sent as **httpOnly cookie** (not localStorage).
 - Do not commit the `venv/` folder, `.env` file, `*.db` files, or `frontend/dist/`
 - Do not use `localStorage` or `sessionStorage` for auth — JWT lives in httpOnly cookies
 - Do not add architecture-specific code — backend must run identically on Windows 11 (dev) and Raspberry Pi OS (production)
-- Do not commit in main.
 - Do not push to origin.
