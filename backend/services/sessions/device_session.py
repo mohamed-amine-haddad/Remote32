@@ -16,9 +16,25 @@ def get_by_id(session: Session, device_session_id: int) -> DeviceSession | None:
 def get_by_board_id(session: Session, board_id: int) -> list[DeviceSession]:
     return session.exec(select(DeviceSession).where(DeviceSession.board_id == board_id)).all()
 
+# Returns the active session for a specific board (if exists)
+def get_active_by_board_id(session: Session, board_id: int) -> DeviceSession | None:
+    return session.exec(
+        select(DeviceSession)
+        .where(DeviceSession.board_id == board_id)
+        .where(DeviceSession.status == "active")
+    ).first()
+
 
 def get_by_user_id(session: Session, user_id: int) -> list[DeviceSession]:
     return session.exec(select(DeviceSession).where(DeviceSession.user_id == user_id)).all()
+
+def get_active_by_user_id(session: Session, user_id: int) -> DeviceSession | None:
+    return session.exec(
+        select(DeviceSession)
+        .where(DeviceSession.user_id == user_id)
+        .where(DeviceSession.status == "active")
+    ).first()
+
 
 
 def get_by_status(session: Session, status: str) -> list[DeviceSession]:
@@ -58,7 +74,7 @@ if __name__ == "__main__":
     from datetime import datetime
 
     with Session(engine) as session:
-        
+        """
         # --- CREATE ---
         new_session = DeviceSession(
             user_id=1,
@@ -69,6 +85,7 @@ if __name__ == "__main__":
         )
         created = create(session, new_session)
         print("Created:", created)
+
         
         # --- GET ALL ---
         all_sessions = get_all(session)
@@ -91,7 +108,13 @@ if __name__ == "__main__":
         # --- UPDATE ---
         updated = update(session, 3, {"status": "active"})
         print("Updated status:", updated.status)
-
+        
         # --- DELETE ---
-        deleted = delete(session, 3)
+        deleted = delete(session, 2)
         print("Deleted:", deleted)
+        """
+
+        # --- GET BY USER ID ---
+        board_sessions = get_active_by_user_id(session, 1)
+        print("Sessions for user 1:", board_sessions)
+        
