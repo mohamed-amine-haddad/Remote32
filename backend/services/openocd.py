@@ -2,6 +2,7 @@ import sys
 sys.path.insert(0, ".")
 
 import os
+import time
 import paramiko
 from dotenv import load_dotenv
 from fastapi import HTTPException
@@ -29,13 +30,14 @@ def _ssh(board : Board):
 
 def is_running(board : Board):
     openocd_pid = board.openocd_pid
-    if (openocd_pid == None):
+    if openocd_pid is None:
         return False
-    
-    client = _ssh(board) 
-    stdin, stdout, stderr = client.exec_command(f"cat /proc/{openocd_pid}/comm") # checks process existence without affecting it
-    process_name = stdout.read().decode().strip()
+    return is_running_by_pid(openocd_pid, board)
 
+def is_running_by_pid(openocd_pid: int, board: Board) -> bool:
+    client = _ssh(board)
+    stdin, stdout, stderr = client.exec_command(f"cat /proc/{openocd_pid}/comm")
+    process_name = stdout.read().decode().strip()
     client.close()
     return process_name == "openocd"
 
@@ -53,11 +55,16 @@ def launch_openocd(board : Board) -> int:
     config_file_path = os.getenv("CONFIG_PATH") + board.config_file
     stdin, stdout, stderr = client.exec_command(f"nohup openocd -f {config_file_path} > /tmp/openocd_{board.id}.log 2>&1 & echo $!")
     openocd_pid = stdout.readline().strip()
+    client.close()
+
+    time.sleep(1)
+    if not is_running_by_pid(openocd_pid, board):
+        raise HTTPException(status_code=500, detail="OpenOCD failed to start")
 
     # Update openocd_pid in database
     with Session(engine) as session:
-        update_board(session, board.id, {"openocd_pid" : openocd_pid})
-    
+        update_board(session, board.id, {"status" : "running", "openocd_pid" : openocd_pid})
+
     return openocd_pid
 
 def kill_openocd(board : Board):
@@ -71,8 +78,29 @@ def kill_openocd(board : Board):
     
 if __name__ == "__main__":
     with Session(engine) as session:
+        board1 = get_board_by_id(session, 1)
+        board2 = get_board_by_id(session, 2)
+
+    print("1) is_running before launch:", is_running(board1))
+    
+    pid1 = launch_openocd(board1)
+    print("launched with PID:", pid1)
+
+    with Session(engine) as session:
         board = get_board_by_id(session, 1)
-    print(kill_openocd(board))
+
+    print("1) is_running after launch:", is_running(board))
+    print("---")
+    print("2) is_running before launch:", is_running(board1))
+    
+    pid2 = launch_openocd(board2)
+    print("launched with PID:", pid2)
+
+    with Session(engine) as session:
+        board2 = get_board_by_id(session, 2)
+
+    print("1) is_running after launch:", is_running(board2))
+      
 
 
 
