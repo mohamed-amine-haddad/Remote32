@@ -60,12 +60,19 @@ def launch_openocd(board : Board) -> int:
     
     return openocd_pid
 
-def kill_openocd(board : Board): # Parameter board or openocd_pid ?
-    pass
+def kill_openocd(board : Board):
+    if not (is_running(board) == True):
+        raise HTTPException(status_code = 409, detail = "Board does not have an active session")
+    
+    openocd_pid = board.openocd_pid
+    client = _ssh(board)    
+    client.exec_command(f"kill {openocd_pid}")
+    client.close()
+    
 if __name__ == "__main__":
     with Session(engine) as session:
         board = get_board_by_id(session, 1)
-    print(is_running(board))
+    print(kill_openocd(board))
 
 
 
