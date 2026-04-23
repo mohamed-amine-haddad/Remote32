@@ -10,7 +10,7 @@ Guidance for Claude Code when working in this repository.
 code on real STM32 microcontrollers connected to a Raspberry Pi, from their own
 computer. Developed as a Projet de Fin d'Année (PFA).
 
-**Status:** almost finished UI prototype, backend started but a bit messy.
+**Status:** frontend UI prototype done; auth works end-to-end; routers scaffolded (501 placeholders); stub services to be written in backend/services/stub + UI pages to be linked to backend; real services being implemented in parallel.
 
 ---
 

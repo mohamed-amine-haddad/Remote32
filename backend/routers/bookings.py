@@ -5,6 +5,7 @@ from sqlmodel import Session
 from backend.database import get_session
 from backend.dependencies import get_current_user
 from backend.models import User
+import backend.services.stub.bookings as bookings_service
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
@@ -41,10 +42,10 @@ def list_bookings(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"resource_type must be one of: {', '.join(VALID_RESOURCE_TYPES)}",
         )
-    # TODO: call bookings_service.get_by_resource(db, resource_type, resource_id)
-    #       Returns all reserved/occupied slots for the given resource.
-    #       Raise 404 if the resource_id does not correspond to a known device/application.
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented yet")
+    try:
+        return bookings_service.get_by_resource(db, resource_type, resource_id)
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.post("", response_model=BookingOut, status_code=status.HTTP_201_CREATED)
@@ -58,9 +59,13 @@ def create_booking(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"resource_type must be one of: {', '.join(VALID_RESOURCE_TYPES)}",
         )
-    # TODO: call bookings_service.create(db, current_user.id, body.resource_type,
-    #           body.resource_id, body.date, body.start_time, body.duration_minutes)
-    # TODO: service raises LookupError → 404 (resource not found)
-    # TODO: service raises ValueError → 400 (invalid date/time)
-    # TODO: service raises ConflictError → 409 (time overlap with existing reservation)
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented yet")
+    try:
+        return bookings_service.create(
+            db, current_user.id, body.resource_type, body.resource_id,
+            body.date, body.start_time, body.duration_minutes,
+        )
+    except LookupError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    # TODO: except ConflictError → 409 when real service implements overlap detection

@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlmodel import Session
 
 from backend.database import get_session
+import backend.services.stub.applications as applications_service
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -32,20 +33,20 @@ class SessionConfigOut(BaseModel):
 
 @router.get("", response_model=list[ApplicationSummaryOut])
 def list_applications(db: Session = Depends(get_session)):
-    # TODO: call applications_service.get_all(db)
-    #       Applications are defined in backend/configs/applications/ JSON files.
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented yet")
+    return applications_service.get_all(db)
 
 
 @router.get("/{id}", response_model=ApplicationDetailOut)
 def get_application(id: int, db: Session = Depends(get_session)):
-    # TODO: call applications_service.get_by_id(id)
-    #       Reads the application config JSON and resolves the boards' current status from DB.
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented yet")
+    try:
+        return applications_service.get_by_id(db, id)
+    except LookupError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
 
 
 @router.get("/{id}/config", response_model=SessionConfigOut)
 def get_application_config(id: int, db: Session = Depends(get_session)):
-    # TODO: call config_service.get_application_config(id)
-    #       Reads min/max duration and slot step from the application descriptor JSON.
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented yet")
+    try:
+        return applications_service.get_config(db, id)
+    except LookupError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
