@@ -1,56 +1,26 @@
+import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import StatusBadge from '../components/StatusBadge'
 import JsonRenderer from '../components/JsonRenderer'
 import { useAuth } from '../contexts/AuthContext'
-
-// Mock data
-const DEVICES = {
-    1: {
-        status: "free",
-        descriptor: {
-            name: "STM32-01",
-            type: "STM32F4 Discovery",
-            openocd_config_path: "board/stm32f4discovery.cfg",
-            serial_port: "/dev/ttyUSB0",
-            swd_interface: "stlink",
-            camera: {
-                enabled: true,
-                stream_path: "/stream/device1",
-                resolution: "1280x720",
-            },
-            capabilities: ["GPIO", "UART", "SPI", "I2C", "PWM", "ADC"],
-            notes: "General-purpose board. Suitable for most beginner and intermediate labs.",
-        }
-    },
-    2: {
-        status: "occupied",
-        descriptor: {
-            name: "STM32-02",
-            type: "STM32G0 Nucleo",
-            openocd_config_path: "board/stm32g0nucleo.cfg",
-            serial_port: "/dev/ttyUSB1",
-            swd_interface: "stlink",
-            camera: {
-                enabled: true,
-                stream_path: "/stream/device2",
-                resolution: "640x480",
-            },
-            capabilities: ["GPIO", "UART", "ADC", "DAC", "Low-power modes"],
-            notes: null,
-        }
-    },
-}
+import { apiGetDevice } from '../api/devices'
 
 export default function DeviceDetailPage() {
 
     const { id } = useParams()
     const navigate = useNavigate()
     const { user } = useAuth()
-    const device = DEVICES[id]
+    const [device, setDevice] = useState(null)
+    const [loading, setLoading] = useState(true)
 
-    // If the user is not logged in, redirect to /login before entering
-    // a protected action (session or booking).
+    useEffect(() => {
+        apiGetDevice(id)
+            .then(setDevice)
+            .catch(() => setDevice(null))
+            .finally(() => setLoading(false))
+    }, [id])
+
     function requireAuth(destination) {
         if (user) {
             navigate(destination)
@@ -98,7 +68,15 @@ export default function DeviceDetailPage() {
 
     const cardTitle = "text-xs font-bold uppercase tracking-widest text-gray-400 mb-6"
 
-    // 404 fallback
+    if (loading) return (
+        <div className={page}>
+            <Navbar />
+            <div className={content}>
+                <p className="text-sm text-gray-400 font-medium">Loading…</p>
+            </div>
+        </div>
+    )
+
     if (!device) {
         return (
             <div className={page}>
@@ -146,7 +124,6 @@ export default function DeviceDetailPage() {
                 {/* DESCRIPTOR CARD */}
                 <div className={card}>
                     <p className={cardTitle}>Hardware descriptor</p>
-                    {/* JsonRenderer takes the full descriptor object and renders it dynamically */}
                     <JsonRenderer data={device.descriptor} />
                 </div>
 

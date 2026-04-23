@@ -1,21 +1,9 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
-
-// Mock data — will be replaced by GET /sessions/:id
-const SESSION = {
-    device_name: "STM32-01",
-    status: "active",
-    started_at: "14:32",
-    time_left: "27:14",
-    ends_at: "15:00",
-    gdb_host: "retroboy",
-    gdb_port: "3333",
-}
+import { apiGetDeviceSession, apiEndDeviceSession } from '../api/deviceSessions'
 
 // ── Session status badge ───────────────────────────────────────────────────────
-// Separate from StatusBadge (which handles device availability).
-// Session lifecycle statuses need their own color mapping.
 
 const sessionBadgeColors = {
     active:    "bg-green-400 text-black",
@@ -45,7 +33,6 @@ function SessionBadge({ status }) {
 }
 
 // ── CopyButton ─────────────────────────────────────────────────────────────────
-// Copies `value` to clipboard; shows ✓ for 1.5 s then resets.
 
 function CopyButton({ value }) {
     const [copied, setCopied] = useState(false)
@@ -124,10 +111,34 @@ function StepRow({ number, title, description }) {
 export default function DeviceSessionPage() {
 
     const { id } = useParams()
+    const navigate = useNavigate()
+
+    const [session,  setSession]  = useState(null)
+    const [loading,  setLoading]  = useState(true)
+    const [error,    setError]    = useState(null)
+    const [ending,   setEnding]   = useState(false)
+
+    useEffect(() => {
+        apiGetDeviceSession(id)
+            .then(setSession)
+            .catch(() => setSession(null))
+            .finally(() => setLoading(false))
+    }, [id])
+
+    const handleEndSession = async () => {
+        setEnding(true)
+        setError(null)
+        try {
+            await apiEndDeviceSession(id)
+            navigate('/devices')
+        } catch (err) {
+            setError(err.message)
+            setEnding(false)
+        }
+    }
 
     // Layout
     const page    = "min-h-screen bg-white font-body flex flex-col"
-    // pb-24 prevents the sticky bottom bar from covering the last card
     const content = "flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 px-6 md:px-10 py-8 pb-24 items-start"
 
     // Shared card style
@@ -140,9 +151,9 @@ export default function DeviceSessionPage() {
     const infoValue = "font-bold text-navy"
 
     // Bottom bar
-    const bar       = "sticky bottom-0 z-10 bg-white border-t-2 border-black px-6 py-4 flex items-center justify-between"
-    const barLabel  = "text-sm text-gray-500"
-    const barTimer  = "font-mono font-bold text-navy text-lg ml-2"
+    const bar      = "sticky bottom-0 z-10 bg-white border-t-2 border-black px-6 py-4 flex items-center justify-between"
+    const barLabel = "text-sm text-gray-500"
+    const barTimer = "font-mono font-bold text-navy text-lg ml-2"
 
     const endBtn = [
         "px-5 py-2",
@@ -152,6 +163,27 @@ export default function DeviceSessionPage() {
         "hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px]",
         "transition-all duration-100 cursor-pointer",
     ].join(" ")
+
+    if (loading) return (
+        <div className={page}>
+            <Navbar />
+            <div className="flex-1 px-6 py-8">
+                <p className="text-sm text-gray-400 font-medium">Loading session…</p>
+            </div>
+        </div>
+    )
+
+    if (!session) return (
+        <div className={page}>
+            <Navbar />
+            <div className="flex-1 px-6 py-8">
+                <p className="text-lg font-bold text-red-500">Session not found.</p>
+                <Link to="/devices" className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black underline underline-offset-2">
+                    ← Back to Devices
+                </Link>
+            </div>
+        </div>
+    )
 
     return (
         <div className={page}>
@@ -164,19 +196,17 @@ export default function DeviceSessionPage() {
 
                     {/* Back link */}
                     <Link
-                        to={`/devices/${id}`}
+                        to="/devices"
                         className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black underline underline-offset-2 w-fit"
                     >
-                        ← Back to device
+                        ← Back to devices
                     </Link>
 
                     {/* Camera feed card */}
                     <div className={card}>
                         <p className={cardTitle}>Live Feed</p>
-                        {/* 16:9 aspect ratio placeholder — replaced by <img> pointing to nginx MJPEG stream */}
                         <div className="relative w-full bg-gray-900 border-2 border-black" style={{ aspectRatio: "16/9" }}>
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-500 select-none">
-                                {/* Camera icon */}
                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
                                     stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M23 7l-7 5 7 5V7z" />
@@ -193,18 +223,21 @@ export default function DeviceSessionPage() {
                         <div className={infoGrid}>
 
                             <span className={infoLabel}>Device</span>
-                            <span className={infoValue}>{SESSION.device_name}</span>
+                            <span className={infoValue}>{session.device_name}</span>
 
                             <span className={infoLabel}>Status</span>
-                            <span><SessionBadge status={SESSION.status} /></span>
+                            <span><SessionBadge status={session.status} /></span>
 
                             <span className={infoLabel}>Started at</span>
-                            <span className={infoValue}>{SESSION.started_at}</span>
+                            <span className={infoValue}>{session.started_at}</span>
 
                             <span className={infoLabel}>Ends at</span>
-                            <span className={infoValue}>{SESSION.ends_at}</span>
+                            <span className={infoValue}>{session.ends_at}</span>
 
                         </div>
+                        {error && (
+                            <p className="mt-4 text-sm font-medium text-red-600">{error}</p>
+                        )}
                     </div>
                 </div>
 
@@ -212,7 +245,6 @@ export default function DeviceSessionPage() {
                 <div className={card}>
                     <p className={cardTitle}>Connect via STM32CubeIDE</p>
 
-                    {/* Numbered steps */}
                     <StepRow
                         number={1}
                         title="Open Debug Configurations"
@@ -235,8 +267,8 @@ export default function DeviceSessionPage() {
                             Connection details
                         </p>
                         <div className="border-2 border-black bg-gray-50 px-4">
-                            <ConnectionRow label="Host" value={SESSION.gdb_host} />
-                            <ConnectionRow label="Port" value={SESSION.gdb_port} />
+                            <ConnectionRow label="Host" value={session.gdb_host} />
+                            <ConnectionRow label="Port" value={session.gdb_port} />
                         </div>
                     </div>
                 </div>
@@ -247,13 +279,14 @@ export default function DeviceSessionPage() {
             <div className={bar}>
                 <div className="flex items-center">
                     <span className={barLabel}>Session ends in</span>
-                    <span className={barTimer}>{SESSION.time_left}</span>
+                    <span className={barTimer}>{session.time_left}</span>
                 </div>
                 <button
                     className={endBtn}
-                    onClick={() => console.log("end session")}
+                    onClick={handleEndSession}
+                    disabled={ending}
                 >
-                    End session
+                    {ending ? 'Ending…' : 'End session'}
                 </button>
             </div>
         </div>

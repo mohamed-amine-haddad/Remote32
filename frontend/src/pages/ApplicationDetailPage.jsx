@@ -1,84 +1,25 @@
+import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import StatusBadge from '../components/StatusBadge'
 import JsonRenderer from '../components/JsonRenderer'
 import { useAuth } from '../contexts/AuthContext'
-
-// Mock data
-const APPLICATIONS = {
-    1: {
-        status: "free",
-        descriptor: {
-            name: "Motor Control Lab",
-            description: "Closed-loop DC motor control with PID. Control board manages speed and direction setpoints.",
-            main_device: {
-                device_id: "STM32-01",
-                role: "PID controller — reads encoder, drives PWM output",
-                openocd_config_path: "board/stm32f4discovery.cfg",
-                camera: {
-                    enabled: true,
-                    stream_path: "/stream/app1",
-                },
-            },
-            control_devices: [
-                {
-                    device_id: "STM32-03",
-                    default_elf: "motor_control_v1.elf",
-                    available_elfs: [
-                        "motor_control_v1.elf",
-                        "motor_control_v2_turbo.elf",
-                        "motor_open_loop.elf",
-                    ],
-                    buttons: [
-                        { label: "Start motor", uart_command: "CMD_START" },
-                        { label: "Stop motor",  uart_command: "CMD_STOP"  },
-                        { label: "Speed +10%",  uart_command: "CMD_SPD_UP" },
-                        { label: "Speed -10%",  uart_command: "CMD_SPD_DN" },
-                        { label: "Reverse",     uart_command: "CMD_REV" },
-                    ],
-                }
-            ],
-        }
-    },
-    2: {
-        status: "reserved",
-        descriptor: {
-            name: "Sensor Array",
-            description: "Multi-sensor data acquisition over I2C. Control board triggers sampling and configures sensor modes.",
-            main_device: {
-                device_id: "STM32-02",
-                role: "I2C master — aggregates sensor readings",
-                openocd_config_path: "board/stm32g0nucleo.cfg",
-                camera: {
-                    enabled: false,
-                    stream_path: null,
-                },
-            },
-            control_devices: [
-                {
-                    device_id: "STM32-04",
-                    default_elf: "sensor_trigger_v1.elf",
-                    available_elfs: [
-                        "sensor_trigger_v1.elf",
-                        "sensor_continuous.elf",
-                    ],
-                    buttons: [
-                        { label: "Sample once",    uart_command: "CMD_SAMPLE" },
-                        { label: "Continuous on",  uart_command: "CMD_CONT_ON" },
-                        { label: "Continuous off", uart_command: "CMD_CONT_OFF" },
-                    ],
-                }
-            ],
-        }
-    },
-}
+import { apiGetApplication } from '../api/applications'
 
 export default function ApplicationDetailPage() {
 
     const { id } = useParams()
     const navigate = useNavigate()
     const { user } = useAuth()
-    const application = APPLICATIONS[id]
+    const [application, setApplication] = useState(null)
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        apiGetApplication(id)
+            .then(setApplication)
+            .catch(() => setApplication(null))
+            .finally(() => setLoading(false))
+    }, [id])
 
     function requireAuth(destination) {
         if (user) {
@@ -125,6 +66,15 @@ export default function ApplicationDetailPage() {
     ].join(" ")
 
     const cardTitle = "text-xs font-bold uppercase tracking-widest text-gray-400 mb-6"
+
+    if (loading) return (
+        <div className={page}>
+            <Navbar />
+            <div className={content}>
+                <p className="text-sm text-gray-400 font-medium">Loading…</p>
+            </div>
+        </div>
+    )
 
     if (!application) {
         return (
@@ -175,8 +125,6 @@ export default function ApplicationDetailPage() {
                 </div>
 
                 {/* ── DESCRIPTOR CARDS ─────────────────────────── */}
-                {/* Application has two logical sections — split into two cards
-                    so neither becomes overwhelming. Both use the same JsonRenderer. */}
                 <div className={grid}>
 
                     {/* Main device descriptor */}
