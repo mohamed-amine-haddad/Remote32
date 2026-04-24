@@ -61,5 +61,5 @@ if __name__ == "__main__":
         deleted = delete(session, 2)
         print("Deleted:", deleted)
         """
-        updated = update(session, 1, {"host": "192.168.1.15"})
+        updated = update(session, 1, {"host": "remote32.duckdns.org"})
         print("Updated user:", updated.user)
