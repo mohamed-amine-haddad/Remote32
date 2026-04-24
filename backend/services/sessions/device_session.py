@@ -137,7 +137,4 @@ if __name__ == "__main__":
         # --- DELETE ---
         deleted = delete(session, 2)
         print("Deleted:", deleted)
-        
-        # --- UPDATE ---
-        updated = update(session, 1, {"start_time": datetime(2026, 4, 22, 16, 45, 0), "end_time" : datetime(2026, 4, 22, 17, 45, 0)})
-        print("Updated status:", updated.status)
+
