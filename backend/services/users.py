@@ -56,14 +56,15 @@ if __name__ == "__main__":
 
         # --- CREATE ---
         new_user = User(
-            name="Test User",
-            email="test@remote32.com",
+            name="Oussama",
+            email="Oussama@remote32.com",
             hashed_password="hashed_pw_placeholder",
             role="user"
         )
         created = create(session, new_user)
         print("Created:", created)
 
+        """
         # --- GET ALL ---
         all_users = get_all(session)
         print(f"All users ({len(all_users)}):")
@@ -89,3 +90,4 @@ if __name__ == "__main__":
         # --- DELETE ---
         deleted = delete(session, created.id)
         print("Deleted:", deleted)
+        """
