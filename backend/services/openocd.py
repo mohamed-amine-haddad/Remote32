@@ -82,6 +82,8 @@ if __name__ == "__main__":
         board1 = get_board_by_id(session, 1)
         board2 = get_board_by_id(session, 2)
 
+    """
+
     print("1) is_running before launch:", is_running(board1))
     
     pid1 = launch_openocd(board1)
@@ -90,8 +92,11 @@ if __name__ == "__main__":
     with Session(engine) as session:
         board = get_board_by_id(session, 1)
 
+    
     print("1) is_running after launch:", is_running(board))
+    """
     print("---")
+    
     print("2) is_running before launch:", is_running(board1))
     
     pid2 = launch_openocd(board2)
