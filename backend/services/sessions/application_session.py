@@ -3,6 +3,7 @@ sys.path.insert(0, ".")
 
 from sqlmodel import Session, select
 from models import ApplicationSession
+from datetime import datetime, timedelta
 
 
 def get_all(session: Session) -> list[ApplicationSession]:
@@ -56,13 +57,36 @@ def delete(session: Session, session_id: int) -> bool:
     return True
 
 
+def get_active_by_target_board_id(session: Session, board_id: int) -> ApplicationSession | None:
+    return session.exec(
+        select(ApplicationSession)
+        .where(ApplicationSession.target_board_id == board_id)
+        .where(ApplicationSession.status == "active")
+    ).first()
+
+
+def get_time_until_next_reservation(session: Session, board_id: int) -> timedelta | None:
+    now = datetime.now()
+    next_reservation = session.exec(
+        select(ApplicationSession)
+        .where(ApplicationSession.target_board_id == board_id)
+        .where(ApplicationSession.status == "reserved")
+        .where(ApplicationSession.start_time > now)
+        .order_by(ApplicationSession.start_time)
+    ).first()
+
+    if next_reservation is None:
+        return None
+    return next_reservation.start_time - now
+
+
 if __name__ == "__main__":
     from database import engine
     from sqlmodel import Session
     from datetime import datetime
 
     with Session(engine) as session:
-
+        """
         # --- CREATE ---
         new_session = ApplicationSession(
             user_id=1,
@@ -101,4 +125,9 @@ if __name__ == "__main__":
 
         # --- DELETE ---
         deleted = delete(session, created.id)
+        print("Deleted:", deleted)
+        """
+
+        # --- DELETE ---
+        deleted = delete(session, 2)
         print("Deleted:", deleted)
