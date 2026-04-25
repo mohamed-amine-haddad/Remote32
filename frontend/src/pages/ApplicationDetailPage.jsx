@@ -5,14 +5,22 @@ import StatusBadge from '../components/StatusBadge'
 import JsonRenderer from '../components/JsonRenderer'
 import { useAuth } from '../contexts/AuthContext'
 import { apiGetApplication } from '../api/applications'
+import { apiStartApplicationSession } from '../api/applicationSessions'
 
-export default function ApplicationDetailPage() {
+// Used for both /devices/:id (type="device") and /applications/:id (type="application").
+// The type prop controls the back link and booking destination only — data fetching is
+// always through /api/applications since devices are applications with no control boards.
+export default function ApplicationDetailPage({ type = "application" }) {
 
     const { id } = useParams()
     const navigate = useNavigate()
     const { user } = useAuth()
     const [application, setApplication] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [starting, setStarting] = useState(false)
+    const [startError, setStartError] = useState(null)
+
+    const backPath = `/${type}s`
 
     useEffect(() => {
         apiGetApplication(id)
@@ -21,11 +29,16 @@ export default function ApplicationDetailPage() {
             .finally(() => setLoading(false))
     }, [id])
 
-    function requireAuth(destination) {
-        if (user) {
-            navigate(destination)
-        } else {
-            navigate('/login')
+    async function handleStartSession() {
+        if (!user) { navigate('/login'); return }
+        setStarting(true)
+        setStartError(null)
+        try {
+            const session = await apiStartApplicationSession({ application_id: parseInt(id) })
+            navigate(`/session/${type}/${session.id}`)
+        } catch (err) {
+            setStartError(err.message)
+            setStarting(false)
         }
     }
 
@@ -57,9 +70,6 @@ export default function ApplicationDetailPage() {
         "transition-all duration-100",
     ].join(" ")
 
-    // Two-column grid on desktop for the two descriptor cards
-    const grid = "grid grid-cols-1 lg:grid-cols-2 gap-6"
-
     const card = [
         "border-2 border-black rounded-none",
         "shadow-nb p-6 md:p-8",
@@ -81,14 +91,18 @@ export default function ApplicationDetailPage() {
             <div className={page}>
                 <Navbar />
                 <div className={content}>
-                    <p className="text-lg font-bold text-red-500">Application not found.</p>
-                    <Link to="/applications" className={backLink}>← Back to Applications</Link>
+                    <p className="text-lg font-bold text-red-500">Not found.</p>
+                    <Link to={backPath} className={backLink}>← Back</Link>
                 </div>
             </div>
         )
     }
 
     const desc = application.descriptor
+    const hasControlDevices = (desc.control_devices?.length ?? 0) > 0
+    const grid = hasControlDevices
+        ? "grid grid-cols-1 lg:grid-cols-2 gap-6"
+        : "grid grid-cols-1 gap-6"
 
     return (
         <div className={page}>
@@ -98,7 +112,7 @@ export default function ApplicationDetailPage() {
                 {/* HEADER */}
                 <div className={header}>
                     <div className={titleBlock}>
-                        <Link to="/applications" className={backLink}>← Back to Applications</Link>
+                        <Link to={backPath} className={backLink}>← Back to {type === 'device' ? 'Devices' : 'Applications'}</Link>
                         <h1 className={heading}>{desc.name}</h1>
                         <StatusBadge status={application.status} />
                         {desc.description && (
@@ -109,18 +123,21 @@ export default function ApplicationDetailPage() {
                     <div className={actions}>
                         <button
                             className={primaryBtn}
-                            disabled={application.status !== 'free'}
+                            disabled={application.status !== 'free' || starting}
                             style={application.status !== 'free' ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-                            onClick={() => requireAuth(`/session/application/${id}`)}
+                            onClick={handleStartSession}
                         >
-                            Start session now
+                            {starting ? 'Starting…' : 'Start session now'}
                         </button>
                         <button
                             className={secondaryBtn}
-                            onClick={() => requireAuth(`/book/application/${id}`)}
+                            onClick={() => user ? navigate(`/book/${type}/${id}`) : navigate('/login')}
                         >
                             Book a time slot
                         </button>
+                        {startError && (
+                            <p className="w-full text-sm font-medium text-red-600 mt-1">{startError}</p>
+                        )}
                     </div>
                 </div>
 
@@ -133,11 +150,13 @@ export default function ApplicationDetailPage() {
                         <JsonRenderer data={desc.main_device} />
                     </div>
 
-                    {/* Control devices — can be multiple, hence the array */}
-                    <div className={card}>
-                        <p className={cardTitle}>Control device{desc.control_devices.length > 1 ? 's' : ''}</p>
-                        <JsonRenderer data={{ control_devices: desc.control_devices }} />
-                    </div>
+                    {/* Control devices — only shown when the application has control boards */}
+                    {hasControlDevices && (
+                        <div className={card}>
+                            <p className={cardTitle}>Control device{desc.control_devices.length > 1 ? 's' : ''}</p>
+                            <JsonRenderer data={{ control_devices: desc.control_devices }} />
+                        </div>
+                    )}
 
                 </div>
 

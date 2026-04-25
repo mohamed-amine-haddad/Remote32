@@ -19,11 +19,3 @@ async function request(path, options = {}) {
 export function apiListDevices() {
     return request('')
 }
-
-export function apiGetDevice(id) {
-    return request(`/${id}`)
-}
-
-export function apiGetDeviceConfig(id) {
-    return request(`/${id}/config`)
-}

@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import Calendar from 'react-calendar'
 import Navbar from '../components/Navbar'
 import { apiListBookings, apiCreateBooking } from '../api/bookings'
-import { apiGetDeviceConfig } from '../api/devices'
 import { apiGetApplicationConfig } from '../api/applications'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -60,11 +59,9 @@ export default function BookingPage({ type }) {
     const [submitting,  setSubmitting]  = useState(false)
 
     useEffect(() => {
-        const configFetch = type === 'device'
-            ? apiGetDeviceConfig(id)
-            : apiGetApplicationConfig(id)
+        const configFetch = apiGetApplicationConfig(id)
 
-        Promise.all([configFetch, apiListBookings(type, id)])
+        Promise.all([configFetch, apiListBookings("application", id)])
             .then(([cfg, res]) => {
                 setConfig(cfg)
                 setDuration(cfg.min_duration_minutes)
@@ -133,7 +130,7 @@ export default function BookingPage({ type }) {
         setSubmitting(true)
         try {
             await apiCreateBooking({
-                resource_type: type,
+                resource_type: "application",
                 resource_id: parseInt(id),
                 date: toDateStr(selectedDay),
                 start_time: startTime,
@@ -209,7 +206,7 @@ export default function BookingPage({ type }) {
                                 <span className="font-bold">Duration:</span> {duration} minutes
                             </p>
                             <button className={confirmBtn} onClick={handleBackAfterSuccess}>
-                                Back to device
+                                Back to application
                             </button>
                         </div>
                     </div>

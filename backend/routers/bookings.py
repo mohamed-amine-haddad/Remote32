@@ -9,7 +9,7 @@ import backend.services.stub.bookings as bookings_service
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
-VALID_RESOURCE_TYPES = {"device", "application"}
+VALID_RESOURCE_TYPES = {"application"}
 
 
 # ---------- Schemas ----------

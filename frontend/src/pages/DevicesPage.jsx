@@ -23,7 +23,6 @@ export default function DevicesPage() {
     const heading = "font-display text-5xl md:text-6xl text-navy mb-2"
     const subheading = "text-sm text-gray-500 mb-8"
 
-    // Desktop table — hidden on mobile
     const table = "w-full border-2 border-black hidden md:table"
     const thead = "bg-navy text-white"
     const th = "px-4 py-3 text-left text-xs font-bold uppercase tracking-widest"
@@ -38,7 +37,6 @@ export default function DevicesPage() {
 
     const descText = "text-sm text-gray-600 line-clamp-10"
 
-    // Mobile cards — visible only on mobile, hidden on md+
     const cardList = "flex flex-col gap-4 md:hidden"
 
     const card = [
@@ -67,7 +65,7 @@ export default function DevicesPage() {
 
                 <h1 className={heading}>Devices</h1>
                 <p className={subheading}>
-                    {devices.length} device{devices.length !== 1 ? 's' : ''} available — Select device for more details
+                    {devices.length} device{devices.length !== 1 ? 's' : ''} available — Select a device for direct GDB access
                 </p>
 
                 {/* DESKTOP TABLE */}

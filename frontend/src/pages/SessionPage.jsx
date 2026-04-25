@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
-import { apiGetDeviceSession, apiEndDeviceSession } from '../api/deviceSessions'
+import ControlDevicePanel from '../components/ControlDevicePanel'
+import { apiGetApplicationSession, apiEndApplicationSession, apiFlash, apiCommand } from '../api/applicationSessions'
 
 // ── Session status badge ───────────────────────────────────────────────────────
 
@@ -68,10 +69,9 @@ function CopyButton({ value }) {
 // ── ConnectionRow ──────────────────────────────────────────────────────────────
 
 function ConnectionRow({ label, value }) {
-    const row   = "flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0"
-    const lbl   = "text-xs font-bold uppercase tracking-widest text-gray-400 w-16 shrink-0"
-    const val   = "font-mono font-bold text-navy text-sm flex-1 ml-4"
-
+    const row = "flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0"
+    const lbl = "text-xs font-bold uppercase tracking-widest text-gray-400 w-16 shrink-0"
+    const val = "font-mono font-bold text-navy text-sm flex-1 ml-4"
     return (
         <div className={row}>
             <span className={lbl}>{label}</span>
@@ -84,53 +84,59 @@ function ConnectionRow({ label, value }) {
 // ── StepRow ────────────────────────────────────────────────────────────────────
 
 function StepRow({ number, title, description }) {
-    const wrap  = "flex gap-4 py-4 border-b border-gray-100 last:border-b-0"
-    const num   = [
+    const wrap = "flex gap-4 py-4 border-b border-gray-100 last:border-b-0"
+    const num  = [
         "w-7 h-7 shrink-0",
         "flex items-center justify-center",
         "border-2 border-black rounded-none",
         "bg-navy text-white text-xs font-bold",
     ].join(" ")
-    const body  = "flex flex-col gap-1"
-    const ttl   = "text-sm font-bold text-navy"
-    const desc  = "text-sm text-gray-500 leading-relaxed"
 
     return (
         <div className={wrap}>
             <span className={num}>{number}</span>
-            <div className={body}>
-                <p className={ttl}>{title}</p>
-                <p className={desc}>{description}</p>
+            <div className="flex flex-col gap-1">
+                <p className="text-sm font-bold text-navy">{title}</p>
+                <p className="text-sm text-gray-500 leading-relaxed">{description}</p>
             </div>
         </div>
     )
 }
 
-// ── DeviceSessionPage ──────────────────────────────────────────────────────────
+// ── SessionPage ────────────────────────────────────────────────────────────────
+//
+// Unified session page for all application types.
+// The control panel (right column) only renders when the application has
+// control devices. Applications with no control devices (formerly "devices")
+// use the same page with a 2-column layout instead.
 
-export default function DeviceSessionPage() {
+export default function SessionPage() {
 
     const { id } = useParams()
     const navigate = useNavigate()
 
-    const [session,  setSession]  = useState(null)
-    const [loading,  setLoading]  = useState(true)
-    const [error,    setError]    = useState(null)
-    const [ending,   setEnding]   = useState(false)
+    const [session,   setSession]   = useState(null)
+    const [loading,   setLoading]   = useState(true)
+    const [error,     setError]     = useState(null)
+    const [ending,    setEnding]    = useState(false)
+    const [activeTab, setActiveTab] = useState(0)
 
     useEffect(() => {
-        apiGetDeviceSession(id)
+        apiGetApplicationSession(id)
             .then(setSession)
             .catch(() => setSession(null))
             .finally(() => setLoading(false))
     }, [id])
 
+    const hasControlDevices = (session?.control_devices?.length ?? 0) > 0
+    const backPath = hasControlDevices ? '/applications' : '/devices'
+
     const handleEndSession = async () => {
         setEnding(true)
         setError(null)
         try {
-            await apiEndDeviceSession(id)
-            navigate('/devices')
+            await apiEndApplicationSession(id)
+            navigate(backPath)
         } catch (err) {
             setError(err.message)
             setEnding(false)
@@ -139,24 +145,39 @@ export default function DeviceSessionPage() {
 
     // Layout
     const page    = "min-h-screen bg-white font-body flex flex-col"
-    const content = "flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 px-6 md:px-10 py-8 pb-24 items-start"
+    const content = hasControlDevices
+        ? "flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 px-6 md:px-8 py-8 pb-24 items-start"
+        : "flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 px-6 md:px-10 py-8 pb-24 items-start"
 
-    // Shared card style
+    // Cards
     const card      = "border-2 border-black rounded-none shadow-nb p-6"
     const cardTitle = "text-xs font-bold uppercase tracking-widest text-gray-400 mb-5"
 
-    // Session info grid rows
+    // Session info grid
     const infoGrid  = "grid grid-cols-2 gap-y-4 text-sm"
     const infoLabel = "text-gray-400 font-medium"
     const infoValue = "font-bold text-navy"
 
-    // Bottom bar
-    const bar      = "sticky bottom-0 z-10 bg-white border-t-2 border-black px-6 py-4 flex items-center justify-between"
-    const barLabel = "text-sm text-gray-500"
-    const barTimer = "font-mono font-bold text-navy text-lg ml-2"
+    // Tab bar (control devices panel)
+    const tabBar     = "flex overflow-x-auto whitespace-nowrap border-b-2 border-black"
+    const tabActive  = [
+        "px-4 py-3 shrink-0",
+        "bg-navy text-white border-2 border-black",
+        "font-bold text-xs uppercase tracking-widest",
+        "cursor-pointer",
+    ].join(" ")
+    const tabInactive = [
+        "px-4 py-3 shrink-0",
+        "bg-white text-navy border-2 border-black",
+        "font-bold text-xs uppercase tracking-widest",
+        "hover:bg-accent transition-colors duration-100",
+        "cursor-pointer",
+    ].join(" ")
 
+    // Bottom bar
+    const bar    = "sticky bottom-0 z-10 bg-white border-t-2 border-black px-6 py-4 flex items-center justify-between"
     const endBtn = [
-        "px-5 py-2",
+        "px-5 py-3",
         "bg-red-500 text-white border-2 border-black rounded-none",
         "font-bold text-sm uppercase tracking-widest",
         "shadow-nb-sm",
@@ -178,9 +199,12 @@ export default function DeviceSessionPage() {
             <Navbar />
             <div className="flex-1 px-6 py-8">
                 <p className="text-lg font-bold text-red-500">Session not found.</p>
-                <Link to="/devices" className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black underline underline-offset-2">
-                    ← Back to Devices
-                </Link>
+                <button
+                    onClick={() => navigate(-1)}
+                    className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black underline underline-offset-2"
+                >
+                    ← Back
+                </button>
             </div>
         </div>
     )
@@ -191,21 +215,23 @@ export default function DeviceSessionPage() {
 
             <main className={content}>
 
-                {/* ── LEFT COLUMN ────────────────────────────────── */}
+                {/* ── LEFT: Camera + Session info ───────────────── */}
                 <div className="flex flex-col gap-6">
 
-                    {/* Back link */}
                     <Link
-                        to="/devices"
+                        to={backPath}
                         className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black underline underline-offset-2 w-fit"
                     >
-                        ← Back to devices
+                        ← Back to {hasControlDevices ? 'applications' : 'devices'}
                     </Link>
 
-                    {/* Camera feed card */}
+                    {/* Camera feed */}
                     <div className={card}>
                         <p className={cardTitle}>Live Feed</p>
-                        <div className="relative w-full bg-gray-900 border-2 border-black" style={{ aspectRatio: "16/9" }}>
+                        <div
+                            className="relative w-full bg-gray-900 border-2 border-black"
+                            style={{ aspectRatio: "16/9" }}
+                        >
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-500 select-none">
                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
                                     stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -217,13 +243,12 @@ export default function DeviceSessionPage() {
                         </div>
                     </div>
 
-                    {/* Session info card */}
+                    {/* Session info */}
                     <div className={card}>
                         <p className={cardTitle}>Session Info</p>
                         <div className={infoGrid}>
-
-                            <span className={infoLabel}>Device</span>
-                            <span className={infoValue}>{session.device_name}</span>
+                            <span className={infoLabel}>Application</span>
+                            <span className={infoValue}>{session.app_name}</span>
 
                             <span className={infoLabel}>Status</span>
                             <span><SessionBadge status={session.status} /></span>
@@ -233,7 +258,6 @@ export default function DeviceSessionPage() {
 
                             <span className={infoLabel}>Ends at</span>
                             <span className={infoValue}>{session.ends_at}</span>
-
                         </div>
                         {error && (
                             <p className="mt-4 text-sm font-medium text-red-600">{error}</p>
@@ -241,7 +265,7 @@ export default function DeviceSessionPage() {
                     </div>
                 </div>
 
-                {/* ── RIGHT COLUMN ───────────────────────────────── */}
+                {/* ── MIDDLE: GDB connection panel ──────────────── */}
                 <div className={card}>
                     <p className={cardTitle}>Connect via STM32CubeIDE</p>
 
@@ -261,7 +285,6 @@ export default function DeviceSessionPage() {
                         description="Click Debug. STM32CubeIDE will connect, flash your binary, and start the debug session."
                     />
 
-                    {/* Connection details */}
                     <div className="mt-6">
                         <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
                             Connection details
@@ -273,13 +296,45 @@ export default function DeviceSessionPage() {
                     </div>
                 </div>
 
+                {/* ── RIGHT: Control panel — only for applications with control devices ── */}
+                {hasControlDevices && (
+                    <div className="border-2 border-black rounded-none shadow-nb">
+
+                        {/* Tab bar */}
+                        <div className={tabBar}>
+                            {session.control_devices.map((device, i) => (
+                                <button
+                                    key={device.device_id}
+                                    className={activeTab === i ? tabActive : tabInactive}
+                                    onClick={() => setActiveTab(i)}
+                                >
+                                    {device.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Panels — all mounted, inactive ones hidden, so each panel's state survives tab switches */}
+                        {session.control_devices.map((device, i) => (
+                            <div key={device.device_id} className={activeTab !== i ? 'hidden' : 'p-6'}>
+                                <ControlDevicePanel
+                                    device={device}
+                                    onFlash={elfFilename => apiFlash(id, elfFilename)}
+                                    onCommand={uartCommand => apiCommand(id, uartCommand)}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                )}
+
             </main>
 
             {/* ── BOTTOM BAR ─────────────────────────────────────── */}
             <div className={bar}>
                 <div className="flex items-center">
-                    <span className={barLabel}>Session ends in</span>
-                    <span className={barTimer}>{session.time_left}</span>
+                    <span className="text-sm text-gray-500">Session ends in</span>
+                    <span className="font-mono font-bold text-navy text-lg ml-2">
+                        {session.time_left}
+                    </span>
                 </div>
                 <button
                     className={endBtn}

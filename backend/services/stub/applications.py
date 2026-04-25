@@ -3,6 +3,7 @@
 # from backend.services.stub.applications to backend.services.applications.
 
 _APPLICATIONS = {
+    # ── Full lab applications (have control boards) ───────────────────────────
     1: {
         "id": 1,
         "name": "Motor Control Lab",
@@ -95,6 +96,76 @@ _APPLICATIONS = {
             ],
         },
     },
+
+    # ── Direct-access applications (no control boards — formerly "devices") ───
+    4: {
+        "id": 4,
+        "name": "STM32-01 Direct Access",
+        "status": "free",
+        "description": "STM32F4 Discovery board. General-purpose device suitable for GPIO, timers, UART, SPI and I2C experiments. Connected via SWD.",
+        "descriptor": {
+            "name": "STM32-01 Direct Access",
+            "description": "General-purpose STM32F4 Discovery. Suitable for most beginner and intermediate labs.",
+            "main_device": {
+                "device_id": "STM32-01",
+                "role": "Direct GDB access",
+                "openocd_config_path": "board/stm32f4discovery.cfg",
+                "camera": {"enabled": True, "stream_path": "/stream/device1"},
+            },
+            "control_devices": [],
+        },
+    },
+    5: {
+        "id": 5,
+        "name": "STM32-02 Direct Access",
+        "status": "occupied",
+        "description": "STM32G0 Nucleo board. Ideal for low-power experiments and ADC/DAC signal processing labs. Full debug access via SWD.",
+        "descriptor": {
+            "name": "STM32-02 Direct Access",
+            "description": "STM32G0 Nucleo. Ideal for low-power and ADC/DAC experiments.",
+            "main_device": {
+                "device_id": "STM32-02",
+                "role": "Direct GDB access",
+                "openocd_config_path": "board/stm32g0nucleo.cfg",
+                "camera": {"enabled": True, "stream_path": "/stream/device2"},
+            },
+            "control_devices": [],
+        },
+    },
+    6: {
+        "id": 6,
+        "name": "STM32-03 Direct Access",
+        "status": "reserved",
+        "description": "STM32H7 evaluation board. High-performance board with FPU support. Used for DSP and real-time control labs requiring floating-point operations.",
+        "descriptor": {
+            "name": "STM32-03 Direct Access",
+            "description": "High-performance STM32H7. For DSP and real-time control with FPU.",
+            "main_device": {
+                "device_id": "STM32-03",
+                "role": "Direct GDB access",
+                "openocd_config_path": "board/stm32h7.cfg",
+                "camera": {"enabled": False, "stream_path": None},
+            },
+            "control_devices": [],
+        },
+    },
+    7: {
+        "id": 7,
+        "name": "STM32-04 Direct Access",
+        "status": "free",
+        "description": "STM32L4 Nucleo board configured for ultra-low-power mode experiments. Suitable for battery-powered system prototyping.",
+        "descriptor": {
+            "name": "STM32-04 Direct Access",
+            "description": "Ultra-low-power STM32L4. Suitable for battery-powered system prototyping.",
+            "main_device": {
+                "device_id": "STM32-04",
+                "role": "Direct GDB access",
+                "openocd_config_path": "board/stm32l4nucleo.cfg",
+                "camera": {"enabled": False, "stream_path": None},
+            },
+            "control_devices": [],
+        },
+    },
 }
 
 _SESSION_CONFIG = {
@@ -103,11 +174,16 @@ _SESSION_CONFIG = {
     "slot_step_minutes": 15,
 }
 
+# IDs of entries that are full applications (have control boards).
+# Entries with no control boards are exposed via /api/devices instead.
+_APPLICATION_IDS = {1, 2, 3}
+
 
 def get_all(session) -> list[dict]:
     return [
         {"id": a["id"], "name": a["name"], "status": a["status"], "description": a["description"]}
         for a in _APPLICATIONS.values()
+        if a["id"] in _APPLICATION_IDS
     ]
 
 
