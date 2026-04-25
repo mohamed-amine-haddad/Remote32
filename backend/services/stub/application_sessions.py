@@ -3,7 +3,11 @@
 # routers/application_sessions.py from backend.services.stub.application_sessions
 # to backend.services.application_sessions.
 
+from datetime import datetime
 import backend.services.stub.applications as _apps
+
+def _now() -> str:
+    return datetime.now().strftime("%H:%M:%S")
 
 # Reusable stub control-device data (used when the application has control boards).
 # In the real service this comes from the application JSON + session context.
@@ -64,7 +68,9 @@ _STUB_CONTROL_DEVICES = [
 # In-memory session store — persists for the lifetime of the server process.
 # Resets on server restart, which is fine for a stub.
 _sessions: dict = {}
-_next_id: list = [1]   # list so it stays mutable at module level
+_next_id: list = [1]       # session ID counter
+_uart_logs: dict = {}      # session_id → list of message dicts
+_uart_next_id: list = [1]  # global UART message ID counter
 
 
 def _make_session(application_id: int) -> dict:
@@ -72,6 +78,16 @@ def _make_session(application_id: int) -> dict:
     has_control = bool(app and app["descriptor"]["control_devices"])
     session_id = _next_id[0]
     _next_id[0] += 1
+
+    boot_time = _now()
+    boot_msgs = [
+        {"id": _uart_next_id[0],     "direction": "rx", "text": "[BOOT] STM32F4 initializing...",              "timestamp": boot_time},
+        {"id": _uart_next_id[0] + 1, "direction": "rx", "text": "[BOOT] HAL configured — UART2 @ 115200 baud", "timestamp": boot_time},
+        {"id": _uart_next_id[0] + 2, "direction": "rx", "text": "[BOOT] System ready. Awaiting commands.",     "timestamp": boot_time},
+    ]
+    _uart_next_id[0] += len(boot_msgs)
+    _uart_logs[session_id] = boot_msgs
+
     return {
         "id": session_id,
         "app_name": app["name"] if app else f"Application {application_id}",
@@ -111,3 +127,23 @@ def flash(session, session_id: int, elf_filename: str) -> str:
 
 def send_command(session, session_id: int, uart_command: str) -> str:
     return f"Command sent: {uart_command}"
+
+
+def get_uart_messages(session, session_id: int, since_id: int = 0) -> dict:
+    if session_id not in _sessions:
+        raise LookupError(f"Session {session_id} not found")
+    logs = _uart_logs.get(session_id, [])
+    return {"messages": [m for m in logs if m["id"] > since_id]}
+
+
+def uart_send(session, session_id: int, text: str) -> str:
+    if session_id not in _sessions:
+        raise LookupError(f"Session {session_id} not found")
+    now = _now()
+    tx_id = _uart_next_id[0]
+    rx_id = _uart_next_id[0] + 1
+    _uart_next_id[0] += 2
+    log = _uart_logs.setdefault(session_id, [])
+    log.append({"id": tx_id, "direction": "tx", "text": text,          "timestamp": now})
+    log.append({"id": rx_id, "direction": "rx", "text": f"ACK: {text}", "timestamp": now})
+    return f"Sent: {text}"

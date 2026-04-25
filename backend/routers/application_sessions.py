@@ -37,6 +37,18 @@ class CommandRequest(BaseModel):
     uart_command: str
 
 
+class UartSendRequest(BaseModel):
+    text: str
+
+class UartMessage(BaseModel):
+    id: int
+    direction: str   # "tx" | "rx"
+    text: str
+    timestamp: str   # "HH:MM:SS"
+
+class UartMessagesOut(BaseModel):
+    messages: list[UartMessage]
+
 class MessageOut(BaseModel):
     message: str
 
@@ -114,3 +126,30 @@ def send_command(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
+@router.get("/{id}/uart/messages", response_model=UartMessagesOut)
+def get_uart_messages(
+    id: int,
+    since_id: int = 0,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    try:
+        return application_sessions_service.get_uart_messages(db, id, since_id)
+    except LookupError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+
+@router.post("/{id}/uart/send", response_model=MessageOut)
+def uart_send(
+    id: int,
+    body: UartSendRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    try:
+        message = application_sessions_service.uart_send(db, id, body.text)
+        return {"message": message}
+    except LookupError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
