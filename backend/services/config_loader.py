@@ -55,22 +55,38 @@ def load_config(json_path: str) -> SessionConfig:
         return SessionConfig(**json.load(f))
 
 def load_all_configs() -> dict[str, SessionConfig]:
-    # Scans configs/devices/ and configs/applications/, loads every .json file.
-    # Returns a dict keyed by relative path (e.g : "configs/devices/nucleo_f401re_1.json").
-    pass
+    """
+    Scans configs/devices/ and configs/applications/ and loads every .json file.
 
+    Returns a dict where :
+    -key = relative path to the file (e.g. "configs/devices/nucleo_f401re_1.json")
+    -value = the parsed SessionConfig object for that file
+    """
+    configs = {}
+
+    for directory in [DEVICES_DIR, APPLICATIONS_DIR]:
+        # find all json files in directory
+        for json_file in directory.glob("*.json"): 
+            # Build the relative path used as key (e.g. "configs/devices/nucleo_f401re_1.json")
+            relative_path = json_file.relative_to(Path(__file__).parent.parent).as_posix()
+            configs[relative_path] = load_config(relative_path)
+
+    return configs
+
+"""
+called at startup, two checks:
+- every serial_number across all configs has a matching row in the board table
+- no two different boards (different serial numbers) share the same GDB, telnet, or tcl port
+"""
 def validate_configs(configs: dict[str, SessionConfig], db_session: Session) -> None:
-    """
-    called at startup, two checks:
-    - every serial_number across all configs has a matching row in the board table
-    - no two different boards (different serial numbers) share the same GDB, telnet, or tcl port
-    """
     pass
 
 if __name__ == "__main__":
-    test_button = load_config("configs/applications/test_button.json")
-    print(json.dumps(test_button.model_dump(), indent=4))
-    print(test_button.is_application)
+    all_configs = load_all_configs()
+    for path, config in all_configs.items():
+      print(path)
+      print(json.dumps(config.model_dump(), indent=4))
+      print()
 
 
 
