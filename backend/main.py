@@ -3,13 +3,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import backend.models  # registers ALL table classes into SQLModel.metadata
-from backend.database import create_db_and_tables
+from backend.database import create_db_and_tables, engine
 from backend.routers.auth import router as auth_router
+from backend.services.config_loader import load_all_configs, validate_configs
+from sqlmodel import Session
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+    with Session(engine) as db:
+        validate_configs(load_all_configs(), db)
     yield
 
 
