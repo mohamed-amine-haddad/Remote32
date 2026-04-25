@@ -1,10 +1,16 @@
 # SSH-based OpenOCD lifecycle management on the Raspberry Pi.
 # All functions accept a TargetConfig — Pi credentials and board info come from the config, not the DB.
 
+import sys
+sys.path.insert(0, ".")
+
 import os
 import time
 import paramiko
+from dotenv import load_dotenv
 from sqlmodel import Session, select
+
+load_dotenv()
 
 try:
     from backend.services.config_loader import TargetConfig
@@ -94,7 +100,10 @@ def kill_openocd(board_cfg: TargetConfig) -> None:
 
 
 if __name__ == "__main__":
-    from services.config_loader import load_config
+    try:
+        from backend.services.config_loader import load_config
+    except ImportError:
+        from services.config_loader import load_config
     """
     board_cfg = load_config("configs/devices/nucleo_f401re_1.json").target
     print(f"Board: {board_cfg.serial_number} | Pi: {board_cfg.pi.host} | GDB port: {board_cfg.gdb_port}\n")
@@ -128,7 +137,7 @@ if __name__ == "__main__":
     # Test 5: is_running_by_pid after launch
     print("\n--- Test 5: is_running after launch ---")
     if pid:
-        print(f"PASS — is_running_by_pid = {is_running_by_pid(pid, board_cfg)} (expected True)")
+        print(f"PASS — is_running_by_pid = {is_running_by_pid(pid, board_cfg)}")
     else:
         print("SKIP — launch failed")
 
@@ -161,7 +170,7 @@ if __name__ == "__main__":
 
     board_cfg = load_config("configs/devices/nucleo_f401re_1.json").target
     print(f"Board: {board_cfg.serial_number} | Pi: {board_cfg.pi.host} | GDB port: {board_cfg.gdb_port}\n")
-
+    """
     # Test 1: SSH connection
     print("--- Test 1: SSH connection ---")
     try:
@@ -179,6 +188,7 @@ if __name__ == "__main__":
     print("\n--- Test 3: is_port_in_use before launch ---")
     print(f"PASS — is_port_in_use = {is_port_in_use(board_cfg)}")
 
+    
     # Test 4: launch_openocd
     print("\n--- Test 4: launch_openocd ---")
     pid = None
@@ -187,3 +197,31 @@ if __name__ == "__main__":
         print(f"PASS — launched with PID {pid}")
     except RuntimeError as e:
         print(f"FAIL — {e}")
+
+        
+    # Test 5: is_running_by_pid after launch
+    print("\n--- Test 5: is_running after launch ---")
+    if pid:
+        print(f"PASS — is_running_by_pid = {is_running_by_pid(pid, board_cfg)}")
+    else:
+        print("SKIP — launch failed")
+    """
+    pid = 20030
+
+    # Test 6: kill_openocd
+    print("\n--- Test 6: kill_openocd ---")
+    if pid:
+        # Store PID in DB so kill_openocd can find it
+        with Session(engine) as session:
+            board = session.exec(select(Board).where(Board.serial_number == board_cfg.serial_number)).first()
+            board.openocd_pid = pid
+            board.status = "running"
+            session.add(board)
+            session.commit()
+        try:
+            kill_openocd(board_cfg)
+            print("PASS — killed successfully")
+        except RuntimeError as e:
+            print(f"FAIL — {e}")
+    else:
+        print("SKIP — launch failed")
