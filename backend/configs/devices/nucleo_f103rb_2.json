@@ -1,0 +1,15 @@
+{
+    "name": "Nucleo-F103RB",
+    "target": {
+        "serial_number": "066DFF535550755187063847",
+        "pi": {
+            "host": "retroboy",
+            "user": "retroboy69",
+            "password": "Admin060606"
+        },
+        "openocd_cfg": "nucleo_f103rb_2.cfg",
+        "gdb_port": 3334,
+        "telnet_port": 4445,
+        "tcl_port": 6667
+    }
+}

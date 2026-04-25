@@ -1,0 +1,45 @@
+{
+    "name": "Test Button",
+    "target": {
+        "serial_number": "066FFF3632524B3043205333",
+        "pi": {
+            "host": "retroboy",
+            "user": "retroboy69",
+            "password": "Admin060606"
+        },
+        "openocd_cfg": "nucleo_f401re_1.cfg",
+        "gdb_port": 3333,
+        "telnet_port": 4444,
+        "tcl_port": 6666
+    },
+    "control": {
+        "serial_number": "066DFF535550755187063847",
+        "pi": {
+            "host": "retroboy",
+            "user": "retroboy69",
+            "password": "Admin060606"
+        },
+        "openocd_cfg": "nucleo_f103rb_2.cfg",
+        "gdb_port": 3334,
+        "telnet_port": 4445,
+        "tcl_port": 6667,
+        "firmwares": [
+            {
+                "name": "USER Button Control",
+                "bin": "user_button_ctrl.bin",
+                "buttons": [
+                    { "label": "Press USER Button",   "command": "PRESS_USER"   },
+                    { "label": "Release USER Button", "command": "RELEASE_USER" }
+                ]
+            },
+            {
+                "name": "RESET Button Control",
+                "bin": "reset_button_ctrl.bin",
+                "buttons": [
+                    { "label": "Press RESET Button",   "command": "PRESS_RESET"   },
+                    { "label": "Release RESET Button", "command": "RELEASE_RESET" }
+                ]
+            }
+        ]
+    }
+}

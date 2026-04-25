@@ -1,0 +1,15 @@
+{
+    "name": "Nucleo-F401RE",
+    "target": {
+        "serial_number": "066FFF3632524B3043205333",
+        "pi": {
+            "host": "retroboy",
+            "user": "retroboy69",
+            "password": "Admin060606"
+        },
+        "openocd_cfg": "nucleo_f401re_1.cfg",
+        "gdb_port": 3333,
+        "telnet_port": 4444,
+        "tcl_port": 6666
+    }
+}
