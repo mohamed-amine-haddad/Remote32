@@ -44,3 +44,14 @@ export function apiCommand(sessionId, uartCommand) {
         body: JSON.stringify({ uart_command: uartCommand }),
     })
 }
+
+export function apiUartMessages(sessionId, sinceId = 0) {
+    return request(`/${sessionId}/uart/messages?since_id=${sinceId}`)
+}
+
+export function apiUartSend(sessionId, text) {
+    return request(`/${sessionId}/uart/send`, {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+    })
+}

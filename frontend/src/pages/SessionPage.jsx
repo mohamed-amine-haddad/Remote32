@@ -2,36 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import ControlDevicePanel from '../components/ControlDevicePanel'
+import SerialMonitor from '../components/SerialMonitor'
 import { apiGetApplicationSession, apiEndApplicationSession, apiFlash, apiCommand } from '../api/applicationSessions'
-
-// ── Session status badge ───────────────────────────────────────────────────────
-
-const sessionBadgeColors = {
-    active:    "bg-green-400 text-black",
-    reserved:  "bg-accent text-navy",
-    ended:     "bg-gray-200 text-gray-600",
-    cancelled: "bg-red-400 text-white",
-}
-
-const sessionBadgeLabels = {
-    active:    "Active",
-    reserved:  "Reserved",
-    ended:     "Ended",
-    cancelled: "Cancelled",
-}
-
-function SessionBadge({ status }) {
-    const base = [
-        "inline-block px-2 py-1",
-        "text-xs font-bold uppercase tracking-widest",
-        "border border-black rounded-none",
-    ].join(" ")
-    return (
-        <span className={`${base} ${sessionBadgeColors[status] ?? "bg-gray-100 text-gray-700"}`}>
-            {sessionBadgeLabels[status] ?? status}
-        </span>
-    )
-}
 
 // ── CopyButton ─────────────────────────────────────────────────────────────────
 
@@ -146,17 +118,12 @@ export default function SessionPage() {
     // Layout
     const page    = "min-h-screen bg-white font-body flex flex-col"
     const content = hasControlDevices
-        ? "flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 px-6 md:px-8 py-8 pb-24 items-start"
-        : "flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 px-6 md:px-10 py-8 pb-24 items-start"
+        ? "flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 px-6 md:px-8 py-8 pb-6 items-start"
+        : "flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 px-6 md:px-10 py-8 pb-6 items-start"
 
     // Cards
     const card      = "border-2 border-black rounded-none shadow-nb p-6"
     const cardTitle = "text-xs font-bold uppercase tracking-widest text-gray-400 mb-5"
-
-    // Session info grid
-    const infoGrid  = "grid grid-cols-2 gap-y-4 text-sm"
-    const infoLabel = "text-gray-400 font-medium"
-    const infoValue = "font-bold text-navy"
 
     // Tab bar (control devices panel)
     const tabBar     = "flex overflow-x-auto whitespace-nowrap border-b-2 border-black"
@@ -243,26 +210,6 @@ export default function SessionPage() {
                         </div>
                     </div>
 
-                    {/* Session info */}
-                    <div className={card}>
-                        <p className={cardTitle}>Session Info</p>
-                        <div className={infoGrid}>
-                            <span className={infoLabel}>Application</span>
-                            <span className={infoValue}>{session.app_name}</span>
-
-                            <span className={infoLabel}>Status</span>
-                            <span><SessionBadge status={session.status} /></span>
-
-                            <span className={infoLabel}>Started at</span>
-                            <span className={infoValue}>{session.started_at}</span>
-
-                            <span className={infoLabel}>Ends at</span>
-                            <span className={infoValue}>{session.ends_at}</span>
-                        </div>
-                        {error && (
-                            <p className="mt-4 text-sm font-medium text-red-600">{error}</p>
-                        )}
-                    </div>
                 </div>
 
                 {/* ── MIDDLE: GDB connection panel ──────────────── */}
@@ -328,21 +275,37 @@ export default function SessionPage() {
 
             </main>
 
+            {/* ── SERIAL MONITOR ─────────────────────────────────── */}
+            <div className="px-6 md:px-8 pb-24">
+                <SerialMonitor sessionId={id} />
+            </div>
+
             {/* ── BOTTOM BAR ─────────────────────────────────────── */}
             <div className={bar}>
-                <div className="flex items-center">
-                    <span className="text-sm text-gray-500">Session ends in</span>
-                    <span className="font-mono font-bold text-navy text-lg ml-2">
-                        {session.time_left}
-                    </span>
+                <div className="flex items-center gap-6 text-sm flex-wrap">
+                    <div>
+                        <span className="text-gray-400 font-medium mr-2">Started</span>
+                        <span className="font-mono font-bold text-navy">{session.started_at}</span>
+                    </div>
+                    <div>
+                        <span className="text-gray-400 font-medium mr-2">Ends</span>
+                        <span className="font-mono font-bold text-navy">{session.ends_at}</span>
+                    </div>
+                    <div>
+                        <span className="text-gray-400 font-medium mr-2">Time left</span>
+                        <span className="font-mono font-bold text-navy text-lg">{session.time_left}</span>
+                    </div>
                 </div>
-                <button
-                    className={endBtn}
-                    onClick={handleEndSession}
-                    disabled={ending}
-                >
-                    {ending ? 'Ending…' : 'End session'}
-                </button>
+                <div className="flex flex-col items-end gap-1">
+                    {error && <p className="text-xs font-medium text-red-600">{error}</p>}
+                    <button
+                        className={endBtn}
+                        onClick={handleEndSession}
+                        disabled={ending}
+                    >
+                        {ending ? 'Ending…' : 'End session'}
+                    </button>
+                </div>
             </div>
         </div>
     )
