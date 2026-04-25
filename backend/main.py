@@ -8,6 +8,7 @@ from backend.routers.auth import router as auth_router
 from backend.services.config_loader import load_all_configs, validate_configs
 from sqlmodel import Session
 
+# TO BE TESTED
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

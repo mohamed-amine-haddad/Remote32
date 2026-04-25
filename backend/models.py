@@ -2,48 +2,24 @@ from sqlmodel import Field, SQLModel
 from typing import Optional
 from datetime import datetime
 
-# Stm32 board Model
-class Board(SQLModel, table = True):
-    id : Optional[int] = Field(default = None, primary_key = True)
-    name : str
-    serial_number : str = Field(unique = True)
-    config_file: Optional[str] = Field(default=None, unique = True)
-    gdb_port : int = Field(unique = True)
-    telnet_port : int = Field(unique = True)
-    tcl_port : int = Field(unique = True)
-    status : str = Field(default = "idle") # idle | running
-    pi_id : int = Field(foreign_key = "raspberrypi.id")
-    openocd_pid : Optional[int] = Field(default = None)
+# Runtime state of a physical STM32 board — static config lives in JSON files
+class Board(SQLModel, table=True):
+    serial_number : str = Field(primary_key=True)   # physical identity, matches JSON serial_number
+    type          : str                              # "target" | "control"
+    status        : str = Field(default="idle")      # "idle" | "running"
+    openocd_pid   : Optional[int] = Field(default=None)
 
-
-class DeviceSession(SQLModel, table=True):
-    __tablename__ = "device_session"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    board_id: int = Field(foreign_key="board.id")
-    start_time: datetime
-    end_time: datetime
-    status: str  # reserved | active | ended | cancelled
-
-    def __str__(self):
-        return f"DeviceSession(id={self.id}, board={self.board_id}, {self.start_time} -> {self.end_time}, status={self.status})"
-
-
-class ApplicationSession(SQLModel, table=True):
-    __tablename__ = "application_session"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    target_board_id: int = Field(foreign_key="board.id")
-    control_board_id: int = Field(foreign_key="board.id")
-    start_time: datetime
-    end_time: datetime
-    status: str  # reserved | active | ended | cancelled
-
-class RaspberryPi(SQLModel, table=True):
-    id : Optional[int] = Field(default = None, primary_key = True)
-    host : str = Field(unique = True)
-    user : str
-    password : str
+# Unified session — covers both device (no control board) and application (with control board)
+class Session(SQLModel, table=True):
+    __tablename__ = "session"
+    id               : Optional[int] = Field(default=None, primary_key=True)
+    user_id          : Optional[int] = Field(default=None, foreign_key="user.id")
+    json_path        : str                                                          # path to config file — also acts as session type discriminator
+    target_board_sn  : str           = Field(foreign_key="board.serial_number")
+    control_board_sn : Optional[str] = Field(default=None, foreign_key="board.serial_number")  # None = device session
+    start_time       : datetime
+    end_time         : datetime
+    status           : str                                                          # "reserved" | "active" | "ended" | "cancelled"
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
