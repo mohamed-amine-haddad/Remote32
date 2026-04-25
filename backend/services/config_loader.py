@@ -4,7 +4,7 @@
 import json
 from pathlib import Path
 from pydantic import BaseModel, Field
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 DEVICES_DIR = Path(__file__).parent.parent / "configs" / "devices"
 APPLICATIONS_DIR = Path(__file__).parent.parent / "configs" / "applications"
@@ -43,7 +43,7 @@ class ControlConfig(BaseModel):
 class SessionConfig(BaseModel):
     name : str
     target : TargetConfig
-    controls : list[ControlConfig] = [] # DEfault value = []
+    controls : list[ControlConfig] = [] # Default value = []
     @property 
     def is_application(self) -> bool:
         return len(self.controls) > 0
@@ -73,20 +73,58 @@ def load_all_configs() -> dict[str, SessionConfig]:
 
     return configs
 
-"""
-called at startup, two checks:
-- every serial_number across all configs has a matching row in the board table
-- no two different boards (different serial numbers) share the same GDB, telnet, or tcl port
-"""
+# To be tested
 def validate_configs(configs: dict[str, SessionConfig], db_session: Session) -> None:
-    pass
+    """
+    Called at startup. Raises RuntimeError if any check fails, preventing the server from starting.
+
+    Check 1 — every serial_number in every config has a matching row in the board table.
+    Check 2 — no two different boards share the same GDB, telnet, or tcl port.
+    """
+    from backend.models import Board
+
+    # Collect all unique boards across all configs: serial_number -> (gdb_port, telnet_port, tcl_port, source_file)
+    boards: dict[str, tuple[int, int, int, str]] = {}
+    for json_path, config in configs.items():
+        target = config.target
+        boards[target.serial_number] = (target.gdb_port, target.telnet_port, target.tcl_port, json_path)
+        for control in config.controls:
+            boards[control.serial_number] = (control.gdb_port, control.telnet_port, control.tcl_port, json_path)
+
+    # Check 1: every serial_number must have a matching board row in the database
+    for serial_number, (gdb_port, telnet_port, tcl_port, source_file) in boards.items():
+        board = db_session.exec(select(Board).where(Board.serial_number == serial_number)).first()
+        if board is None:
+            raise RuntimeError(f"Board '{serial_number}' referenced in '{source_file}' not found in the database")
+
+    # Check 2: no two different boards can share the same port
+    seen_ports: dict[int, str] = {}  # port -> serial_number that owns it
+    for serial_number, (gdb_port, telnet_port, tcl_port, _) in boards.items():
+        for port in [gdb_port, telnet_port, tcl_port]:
+            if port in seen_ports and seen_ports[port] != serial_number:
+                raise RuntimeError(f"Port {port} conflict between '{serial_number}' and '{seen_ports[port]}'")
+            seen_ports[port] = serial_number
 
 if __name__ == "__main__":
+    """
+    nucleo_f401 = load_config("configs/devices/nucleo_f401re_1.json")
+    print("NUCLEO F401 :")
+    print(json.dumps(nucleo_f401.model_dump(), indent = 4))
+    
+    print("---")
+
+    test_button = load_config("configs/applications/test_button.json")
+    print("TEST BUTTON:")
+    print(json.dumps(test_button.model_dump(), indent=4))
+    """
+
     all_configs = load_all_configs()
     for path, config in all_configs.items():
       print(path)
       print(json.dumps(config.model_dump(), indent=4))
       print()
+    
+    
 
 
 
