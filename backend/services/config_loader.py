@@ -81,15 +81,24 @@ def validate_configs(configs: dict[str, SessionConfig], db_session: Session) -> 
     Check 1 — every serial_number in every config has a matching row in the board table.
     Check 2 — no two different boards share the same GDB, telnet, or tcl port.
     """
-    from backend.models import Board
+    try:
+        from backend.models import Board  # when running via uvicorn from repo root
+    except ImportError:
+        from models import Board          # when running directly from backend/
 
     # Collect all unique boards across all configs: serial_number -> (gdb_port, telnet_port, tcl_port, source_file)
+    # If the same board appears in multiple configs, its ports must be identical — otherwise raise immediately
     boards: dict[str, tuple[int, int, int, str]] = {}
     for json_path, config in configs.items():
-        target = config.target
-        boards[target.serial_number] = (target.gdb_port, target.telnet_port, target.tcl_port, json_path)
-        for control in config.controls:
-            boards[control.serial_number] = (control.gdb_port, control.telnet_port, control.tcl_port, json_path)
+        for board_cfg in [config.target] + list(config.controls):
+            sn = board_cfg.serial_number
+            ports = (board_cfg.gdb_port, board_cfg.telnet_port, board_cfg.tcl_port)
+            if sn in boards and boards[sn][:3] != ports:
+                raise RuntimeError(
+                    f"Board '{sn}' has inconsistent ports across config files "
+                    f"(first seen in '{boards[sn][3]}', conflicts with '{json_path}')"
+                )
+            boards[sn] = (*ports, json_path)
 
     # Check 1: every serial_number must have a matching board row in the database
     for serial_number, (gdb_port, telnet_port, tcl_port, source_file) in boards.items():

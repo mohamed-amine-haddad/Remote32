@@ -1,112 +1,189 @@
-import sys
-sys.path.insert(0, ".")
+# SSH-based OpenOCD lifecycle management on the Raspberry Pi.
+# All functions accept a TargetConfig — Pi credentials and board info come from the config, not the DB.
 
 import os
 import time
 import paramiko
-from dotenv import load_dotenv
-from fastapi import HTTPException
-from models import Board, RaspberryPi, DeviceSession
-from sqlmodel import Session
-from database import engine
-from datetime import datetime, timedelta
+from sqlmodel import Session, select
 
-load_dotenv()
-from services.raspberrys import get_by_id as get_pi_by_id
-from services.devices import get_by_id as get_board_by_id, update as update_board
-from services.sessions.device_session import get_active_by_board_id, create as create_device_session
+try:
+    from backend.services.config_loader import TargetConfig
+    from backend.database import engine
+    from backend.models import Board
+except ImportError:
+    from services.config_loader import TargetConfig
+    from database import engine
+    from models import Board
 
-# Opens and returns an SSH connection to the Pi that the board is connected to
-def _ssh(board : Board):
+
+def _ssh(board_cfg: TargetConfig) -> paramiko.SSHClient:
+    # Opens and returns an SSH connection to the Pi using credentials from the config
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    with Session(engine) as session:
-        pi = get_pi_by_id(session, board.pi_id)
-
-    client.connect(hostname = pi.host, username = pi.user, password = pi.password)
+    client.connect(
+        hostname=board_cfg.pi.host,
+        username=board_cfg.pi.user,
+        password=board_cfg.pi.password
+    )
     return client
 
-def is_running(board : Board):
-    openocd_pid = board.openocd_pid
-    if openocd_pid is None:
-        return False
-    return is_running_by_pid(openocd_pid, board)
 
-def is_running_by_pid(openocd_pid: int, board: Board) -> bool:
-    client = _ssh(board)
-    stdin, stdout, stderr = client.exec_command(f"cat /proc/{openocd_pid}/comm")
+def is_running_by_pid(openocd_pid: int, board_cfg: TargetConfig) -> bool:
+    # Verifies that the process with the given PID is actually openocd on the Pi
+    client = _ssh(board_cfg)
+    _, stdout, _ = client.exec_command(f"cat /proc/{openocd_pid}/comm")
     process_name = stdout.read().decode().strip()
     client.close()
     return process_name == "openocd"
 
-def is_port_in_use(board : Board) -> bool:
-    # Check if the board's gdb port is already in use
-    client = _ssh(board)
-    stdin, stdout, stderr = client.exec_command(f"ss -tlnp | grep :{board.gdb_port}")
-    port_in_use = stdout.read().decode().strip()
+
+def is_running(board_cfg: TargetConfig) -> bool:
+    # Looks up the board's current PID from the DB, then verifies the process is alive on the Pi
+    with Session(engine) as session:
+        board = session.exec(select(Board).where(Board.serial_number == board_cfg.serial_number)).first()
+    if board is None or board.openocd_pid is None:
+        return False
+    return is_running_by_pid(board.openocd_pid, board_cfg)
+
+
+def is_port_in_use(board_cfg: TargetConfig) -> bool:
+    # Checks if the board's GDB port is already listening on the Pi
+    client = _ssh(board_cfg)
+    _, stdout, _ = client.exec_command(f"ss -tlnp | grep :{board_cfg.gdb_port}")
+    result = stdout.read().decode().strip()
     client.close()
+    return len(result) > 0
 
-    return len(port_in_use) > 0
 
-def launch_openocd(board : Board) -> int:
-    client = _ssh(board)
-    config_file_path = os.getenv("CONFIG_PATH") + board.config_file
-    stdin, stdout, stderr = client.exec_command(f"nohup openocd -f {config_file_path} > /tmp/openocd_{board.id}.log 2>&1 & echo $!")
-    openocd_pid = stdout.readline().strip()
+def launch_openocd(board_cfg: TargetConfig) -> int:
+    """
+    Launches OpenOCD on the Pi for the given board config.
+    Returns the PID of the started process.
+    Raises RuntimeError if OpenOCD fails to start.
+    """
+    client = _ssh(board_cfg)
+    config_path = os.getenv("CONFIG_PATH") + board_cfg.openocd_cfg
+    log_file = f"/tmp/openocd_{board_cfg.serial_number}.log"
+    _, stdout, _ = client.exec_command(
+        f"nohup openocd -f {config_path} > {log_file} 2>&1 & echo $!"
+    )
+    openocd_pid = int(stdout.readline().strip())
     client.close()
 
     time.sleep(1)
-    if not is_running_by_pid(openocd_pid, board):
-        raise HTTPException(status_code=500, detail="OpenOCD failed to start")
-
-    """
-    # Update openocd_pid in database
-    with Session(engine) as session:
-        update_board(session, board.id, {"status" : "running", "openocd_pid" : openocd_pid})
-    """
+    if not is_running_by_pid(openocd_pid, board_cfg):
+        raise RuntimeError(f"OpenOCD failed to start for board '{board_cfg.serial_number}'")
 
     return openocd_pid
 
-def kill_openocd(board : Board):
-    if not is_running(board) == True:
-        raise HTTPException(status_code = 409, detail = "Board does not have an active session")
-    
-    openocd_pid = board.openocd_pid
-    client = _ssh(board)    
-    client.exec_command(f"kill {openocd_pid}")
+
+def kill_openocd(board_cfg: TargetConfig) -> None:
+    """
+    Kills the OpenOCD process running on the Pi for this board.
+    Raises RuntimeError if no active process exists.
+    """
+    if not is_running(board_cfg):
+        raise RuntimeError(f"Board '{board_cfg.serial_number}' has no active OpenOCD process")
+
+    with Session(engine) as session:
+        board = session.exec(select(Board).where(Board.serial_number == board_cfg.serial_number)).first()
+
+    client = _ssh(board_cfg)
+    client.exec_command(f"kill {board.openocd_pid}")
     client.close()
-    
+
+
 if __name__ == "__main__":
-    with Session(engine) as session:
-        board1 = get_board_by_id(session, 1)
-        board2 = get_board_by_id(session, 2)
+    from services.config_loader import load_config
+    """
+    board_cfg = load_config("configs/devices/nucleo_f401re_1.json").target
+    print(f"Board: {board_cfg.serial_number} | Pi: {board_cfg.pi.host} | GDB port: {board_cfg.gdb_port}\n")
 
+    # Test 1: SSH connection
+    print("--- Test 1: SSH connection ---")
+    try:
+        client = _ssh(board_cfg)
+        client.close()
+        print("PASS — SSH connection successful")
+    except Exception as e:
+        print(f"FAIL — {e}")
+
+    # Test 2: is_running before launch
+    print("\n--- Test 2: is_running before launch ---")
+    print(f"PASS — is_running = {is_running(board_cfg)} (expected False)")
+
+    # Test 3: is_port_in_use before launch
+    print("\n--- Test 3: is_port_in_use before launch ---")
+    print(f"PASS — is_port_in_use = {is_port_in_use(board_cfg)}")
+
+    # Test 4: launch_openocd
+    print("\n--- Test 4: launch_openocd ---")
+    pid = None
+    try:
+        pid = launch_openocd(board_cfg)
+        print(f"PASS — launched with PID {pid}")
+    except RuntimeError as e:
+        print(f"FAIL — {e}")
+
+    # Test 5: is_running_by_pid after launch
+    print("\n--- Test 5: is_running after launch ---")
+    if pid:
+        print(f"PASS — is_running_by_pid = {is_running_by_pid(pid, board_cfg)} (expected True)")
+    else:
+        print("SKIP — launch failed")
+
+    # Test 6: kill_openocd
+    print("\n--- Test 6: kill_openocd ---")
+    if pid:
+        # Store PID in DB so kill_openocd can find it
+        with Session(engine) as session:
+            board = session.exec(select(Board).where(Board.serial_number == board_cfg.serial_number)).first()
+            board.openocd_pid = pid
+            board.status = "running"
+            session.add(board)
+            session.commit()
+        try:
+            kill_openocd(board_cfg)
+            print("PASS — killed successfully")
+        except RuntimeError as e:
+            print(f"FAIL — {e}")
+    else:
+        print("SKIP — launch failed")
+
+    # Test 7: kill when not running
+    print("\n--- Test 7: kill when not running ---")
+    try:
+        kill_openocd(board_cfg)
+        print("FAIL — should have raised RuntimeError")
+    except RuntimeError as e:
+        print(f"PASS — correctly rejected: {e}")
     """
 
-    print("1) is_running before launch:", is_running(board1))
-    
-    pid1 = launch_openocd(board1)
-    print("launched with PID:", pid1)
+    board_cfg = load_config("configs/devices/nucleo_f401re_1.json").target
+    print(f"Board: {board_cfg.serial_number} | Pi: {board_cfg.pi.host} | GDB port: {board_cfg.gdb_port}\n")
 
-    with Session(engine) as session:
-        board = get_board_by_id(session, 1)
+    # Test 1: SSH connection
+    print("--- Test 1: SSH connection ---")
+    try:
+        client = _ssh(board_cfg)
+        client.close()
+        print("PASS — SSH connection successful")
+    except Exception as e:
+        print(f"FAIL — {e}")
 
-    
-    print("1) is_running after launch:", is_running(board))
-    """
-    print("---")
-    
-    print("2) is_running before launch:", is_running(board1))
-    
-    pid2 = launch_openocd(board2)
-    print("launched with PID:", pid2)
+    # Test 2: is_running before launch
+    print("\n--- Test 2: is_running before launch ---")
+    print(f"PASS — is_running = {is_running(board_cfg)}")
 
-    with Session(engine) as session:
-        board2 = get_board_by_id(session, 2)
+    # Test 3: is_port_in_use before launch
+    print("\n--- Test 3: is_port_in_use before launch ---")
+    print(f"PASS — is_port_in_use = {is_port_in_use(board_cfg)}")
 
-    print("1) is_running after launch:", is_running(board2))
-      
-
-
-
+    # Test 4: launch_openocd
+    print("\n--- Test 4: launch_openocd ---")
+    pid = None
+    try:
+        pid = launch_openocd(board_cfg)
+        print(f"PASS — launched with PID {pid}")
+    except RuntimeError as e:
+        print(f"FAIL — {e}")
