@@ -32,7 +32,10 @@ def get_by_user(db: DBSession, user_id: int) -> list[SessionRecord]:
 def get_active_by_board(db: DBSession, serial_number: str) -> SessionRecord | None:
     return db.exec(
         select(SessionRecord)
-        .where(SessionRecord.target_board_sn == serial_number)
+        .where(
+            (SessionRecord.target_board_sn == serial_number) |
+            (SessionRecord.control_board_sn == serial_number)
+        )
         .where(SessionRecord.status == "active")
     ).first()
 
@@ -48,7 +51,10 @@ def get_active_by_user(db: DBSession, user_id: int) -> SessionRecord | None:
 def get_time_until_next_reservation(db: DBSession, serial_number: str, start_time: datetime) -> timedelta | None:
     next_reservation = db.exec(
         select(SessionRecord)
-        .where(SessionRecord.target_board_sn == serial_number)
+        .where(
+            (SessionRecord.target_board_sn == serial_number) |
+            (SessionRecord.control_board_sn == serial_number)
+        )
         .where(SessionRecord.status == "reserved")
         .where(SessionRecord.start_time > start_time)
         .order_by(SessionRecord.start_time)
@@ -196,8 +202,6 @@ if __name__ == "__main__":
         remaining = get_all(db)
         print(f"PASS — {len(remaining)} session(s) remaining (expected 0)")
     """
+    
     with DBSession(engine) as db:
-        print(get_time_until_next_reservation(db, TARGET_SN, datetime.now() - timedelta(hours=48)))
-    
-    
-    
+        print(get_time_until_next_reservation(db, CONTROL_SN, datetime.now()))
