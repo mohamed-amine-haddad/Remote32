@@ -1,8 +1,12 @@
 # Pydantic models mirroring the JSON config schema + functions to load and validate config files.
 # Single entry point between raw JSON files on disk and the rest of the backend.
 
+import sys
+sys.path.insert(0, ".")
+
 import json
 from pathlib import Path
+from typing import Optional
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
@@ -41,12 +45,12 @@ class ControlConfig(BaseModel):
     firmwares : list[FirmwareConfig]
 
 class SessionConfig(BaseModel):
-    name : str
-    target : TargetConfig
-    controls : list[ControlConfig] = [] # Default value = []
-    @property 
+    name    : str
+    target  : TargetConfig
+    control : Optional[ControlConfig] = None
+    @property
     def is_application(self) -> bool:
-        return len(self.controls) > 0
+        return self.control is not None
 
 # reads one JSON file from disk, parses and validates it into a SessionConfig
 def load_config(json_path: str) -> SessionConfig:
@@ -90,7 +94,7 @@ def validate_configs(configs: dict[str, SessionConfig], db_session: Session) -> 
     # If the same board appears in multiple configs, its ports must be identical — otherwise raise immediately
     boards: dict[str, tuple[int, int, int, str]] = {}
     for json_path, config in configs.items():
-        for board_cfg in [config.target] + list(config.controls):
+        for board_cfg in [config.target] + ([config.control] if config.control else []):
             sn = board_cfg.serial_number
             ports = (board_cfg.gdb_port, board_cfg.telnet_port, board_cfg.tcl_port)
             if sn in boards and boards[sn][:3] != ports:
@@ -111,7 +115,7 @@ def validate_configs(configs: dict[str, SessionConfig], db_session: Session) -> 
     for serial_number, (gdb_port, telnet_port, tcl_port, _) in boards.items():
         for port in [gdb_port, telnet_port, tcl_port]:
             if port in seen_ports and seen_ports[port] != serial_number:
-                raise RuntimeError(f"Port {port} conflict between '{serial_number}' and '{seen_ports[port]}'")
+                raise RuntimeError(f"Port {port} conflict between :\n'{serial_number}' (file : '{boards[serial_number][3]}') and\n'{seen_ports[port]}' (file : '{boards[seen_ports[port]][3]}) ")                    
             seen_ports[port] = serial_number
 
 if __name__ == "__main__":
@@ -125,15 +129,17 @@ if __name__ == "__main__":
     test_button = load_config("configs/applications/test_button.json")
     print("TEST BUTTON:")
     print(json.dumps(test_button.model_dump(), indent=4))
-    """
+    
 
     all_configs = load_all_configs()
     for path, config in all_configs.items():
       print(path)
       print(json.dumps(config.model_dump(), indent=4))
       print()
+    """
+    all_configs = load_all_configs()
+    for path, config in all_configs.items():
+      print(path)
+      print(json.dumps(config.model_dump(), indent=4))
     
-    
-
-
 
