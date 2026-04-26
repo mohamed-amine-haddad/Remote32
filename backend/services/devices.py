@@ -35,6 +35,27 @@ def get_board(serial_number: str, db: Session) -> Board:
     return board
 
 
+def create_board(serial_number: str, type: str, db: Session) -> Board:
+    """Raises RuntimeError if a board with that serial number already exists."""
+    if db.get(Board, serial_number) is not None:
+        raise RuntimeError(f"Board '{serial_number}' already exists in database")
+    board = Board(serial_number=serial_number, type=type)
+    db.add(board)
+    db.commit()
+    db.refresh(board)
+    return board
+
+
+def delete_board(serial_number: str, db: Session) -> None:
+    """Raises RuntimeError if the board is not found."""
+    board = db.get(Board, serial_number)
+    if board is None:
+        raise RuntimeError(f"Board '{serial_number}' not found in database")
+    db.delete(board)
+    db.commit()
+    print("Deleted Successfully")
+
+
 if __name__ == "__main__":
     try:
         from backend.services.config_loader import load_all_configs
@@ -42,7 +63,7 @@ if __name__ == "__main__":
     except ImportError:
         from services.config_loader import load_all_configs
         from database import engine
-
+    """
     configs = load_all_configs()
     VALID_SN   = "066FFF3632524B3043205333"
     INVALID_SN = "INVALID_SERIAL_NUMBER"
@@ -87,3 +108,7 @@ if __name__ == "__main__":
             print("FAIL — should have raised RuntimeError")
         except RuntimeError as e:
             print(f"PASS — correctly rejected: {e}")
+    """
+
+    with Session(engine) as db_session:
+        delete_board("066FFF3632524B3043205334", db_session)
