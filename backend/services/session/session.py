@@ -39,6 +39,16 @@ def get_active_by_board(db: DBSession, serial_number: str) -> SessionRecord | No
         .where(SessionRecord.status == "active")
     ).first()
 
+def get_reserved_by_board(db: DBSession, serial_number: str) -> SessionRecord | None:
+    return db.exec(
+        select(SessionRecord)
+        .where(
+            (SessionRecord.target_board_sn == serial_number) |
+            (SessionRecord.control_board_sn == serial_number)
+        )
+        .where(SessionRecord.status == "reserved")
+    ).first()
+
 
 def get_active_by_user(db: DBSession, user_id: int) -> SessionRecord | None:
     return db.exec(
@@ -46,6 +56,26 @@ def get_active_by_user(db: DBSession, user_id: int) -> SessionRecord | None:
         .where(SessionRecord.user_id == user_id)
         .where(SessionRecord.status == "active")
     ).first()
+
+def get_reserved_by_user(db: DBSession, user_id: int) -> SessionRecord | None:
+    return db.exec(
+        select(SessionRecord)
+        .where(SessionRecord.user_id == user_id)
+        .where(SessionRecord.status == "reserved")
+    ).first()
+
+
+def has_overlapping_session(db: DBSession, serial_number: str, start_time: datetime, end_time: datetime) -> bool:
+    return db.exec(
+        select(SessionRecord)
+        .where(
+            (SessionRecord.target_board_sn == serial_number) |
+            (SessionRecord.control_board_sn == serial_number)
+        )
+        .where(SessionRecord.status.in_(["reserved", "active"]))
+        .where(SessionRecord.start_time < end_time)
+        .where(SessionRecord.end_time > start_time)
+    ).first() is not None
 
 
 def get_time_until_next_reservation(db: DBSession, serial_number: str, start_time: datetime) -> timedelta | None:
@@ -203,5 +233,11 @@ if __name__ == "__main__":
         print(f"PASS — {len(remaining)} session(s) remaining (expected 0)")
     """
     
+    # Test 9: delete — valid
+    print("\n--- Test 9: delete (valid) ---")
     with DBSession(engine) as db:
-        print(get_time_until_next_reservation(db, CONTROL_SN, datetime.now()))
+        try:
+            delete(db, 2)
+            print(f"PASS — deleted session id={3}")
+        except RuntimeError as e:
+            print(f"FAIL — {e}")

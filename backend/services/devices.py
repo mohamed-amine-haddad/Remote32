@@ -46,6 +46,18 @@ def create_board(serial_number: str, type: str, db: Session) -> Board:
     return board
 
 
+def update_board(serial_number: str, data: dict, db: Session) -> Board:
+    """Raises RuntimeError if the board is not found."""
+    board = db.get(Board, serial_number)
+    if board is None:
+        raise RuntimeError(f"Board '{serial_number}' not found in database")
+    for key, value in data.items():
+        setattr(board, key, value)
+    db.commit()
+    db.refresh(board)
+    return board
+
+
 def delete_board(serial_number: str, db: Session) -> None:
     """Raises RuntimeError if the board is not found."""
     board = db.get(Board, serial_number)
@@ -111,4 +123,4 @@ if __name__ == "__main__":
     """
 
     with Session(engine) as db_session:
-        delete_board("066FFF3632524B3043205334", db_session)
+        update_board("066FFF3632524B3043205333", {"status" : "idle", "openocd_pid" : None}, db_session)
