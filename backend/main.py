@@ -13,8 +13,10 @@ from sqlmodel import Session
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+    configs = load_all_configs()
     with Session(engine) as db:
-        validate_configs(load_all_configs(), db)
+        validate_configs(configs, db)
+    app.state.configs = configs
     yield
 
 

@@ -237,4 +237,4 @@ if __name__ == "__main__":
     """
 
     with DBSession(engine) as db:
-        end_session(1, configs, db)
+        end_session(2, configs, db)
