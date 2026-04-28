@@ -10,13 +10,15 @@ _RESERVATIONS = [
 ]
 
 
-def get_by_resource(session, resource_type: str, resource_id: int) -> list[dict]:
+def get_by_resource(session, json_path: str) -> list[dict]:
     return _RESERVATIONS
 
 
-def create(session, user_id: int, resource_type: str, resource_id: int,
-           date: str, start_time: str, duration_minutes: int) -> dict:
-    h, m = map(int, start_time.split(":"))
-    end_total = h * 60 + m + duration_minutes
-    end_time = f"{end_total // 60:02d}:{end_total % 60:02d}"
-    return {"date": date, "start": start_time, "end": end_time, "status": "reserved"}
+def create(session, user_id: int, json_path: str, start_time, duration_minutes: int) -> dict:
+    end_minutes = start_time.hour * 60 + start_time.minute + duration_minutes
+    return {
+        "date": start_time.strftime("%Y-%m-%d"),
+        "start": f"{start_time.hour:02d}:{start_time.minute:02d}",
+        "end": f"{end_minutes // 60:02d}:{end_minutes % 60:02d}",
+        "status": "reserved",
+    }

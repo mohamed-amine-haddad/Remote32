@@ -73,8 +73,11 @@ _uart_logs: dict = {}      # session_id → list of message dicts
 _uart_next_id: list = [1]  # global UART message ID counter
 
 
-def _make_session(application_id: int) -> dict:
-    app = _apps._APPLICATIONS.get(application_id)
+def _make_session(json_path: str) -> dict:
+    try:
+        app = _apps._APPLICATIONS.get(int(json_path))
+    except (ValueError, TypeError):
+        app = None
     has_control = bool(app and app["descriptor"]["control_devices"])
     session_id = _next_id[0]
     _next_id[0] += 1
@@ -90,13 +93,13 @@ def _make_session(application_id: int) -> dict:
 
     return {
         "id": session_id,
-        "app_name": app["name"] if app else f"Application {application_id}",
+        "app_name": app["name"] if app else json_path.split("/")[-1].replace(".json", ""),
         "status": "active",
         "started_at": "14:32",
         "ends_at": "15:32",
         "time_left": "27:14",
         "gdb_host": "retroboy",
-        "gdb_port": "3333",
+        "gdb_port": 3333,
         "control_devices": _STUB_CONTROL_DEVICES if has_control else [],
     }
 
@@ -104,19 +107,19 @@ def _make_session(application_id: int) -> dict:
 def get_by_id(session, session_id: int, user_id: int) -> dict:
     data = _sessions.get(session_id)
     if not data:
-        raise LookupError(f"Session {session_id} not found")
+        raise RuntimeError(f"Session {session_id} not found")
     return data
 
 
-def start(session, application_id: int, user_id: int) -> dict:
-    data = _make_session(application_id)
+def start(session, json_path: str, user_id: int) -> dict:
+    data = _make_session(json_path)
     _sessions[data["id"]] = data
     return data
 
 
 def end(session, session_id: int, user_id: int) -> str:
     if session_id not in _sessions:
-        raise LookupError(f"Session {session_id} not found")
+        raise RuntimeError(f"Session {session_id} not found")
     _sessions[session_id]["status"] = "ended"
     return "Session ended"
 
@@ -131,14 +134,14 @@ def send_command(session, session_id: int, uart_command: str) -> str:
 
 def get_uart_messages(session, session_id: int, since_id: int = 0) -> dict:
     if session_id not in _sessions:
-        raise LookupError(f"Session {session_id} not found")
+        raise RuntimeError(f"Session {session_id} not found")
     logs = _uart_logs.get(session_id, [])
     return {"messages": [m for m in logs if m["id"] > since_id]}
 
 
 def uart_send(session, session_id: int, text: str) -> str:
     if session_id not in _sessions:
-        raise LookupError(f"Session {session_id} not found")
+        raise RuntimeError(f"Session {session_id} not found")
     now = _now()
     tx_id = _uart_next_id[0]
     rx_id = _uart_next_id[0] + 1

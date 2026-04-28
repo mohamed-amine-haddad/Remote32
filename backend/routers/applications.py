@@ -18,7 +18,7 @@ class ApplicationSummaryOut(BaseModel):
 
 
 class ApplicationDetailOut(BaseModel):
-    id: int
+    json_path: str
     status: str
     descriptor: dict
 
@@ -36,17 +36,18 @@ def list_applications(db: Session = Depends(get_session)):
     return applications_service.get_all(db)
 
 
-@router.get("/{id}", response_model=ApplicationDetailOut)
-def get_application(id: int, db: Session = Depends(get_session)):
+# /config route must be registered before the /{json_path:path} catch-all
+@router.get("/{json_path:path}/config", response_model=SessionConfigOut)
+def get_application_config(json_path: str, db: Session = Depends(get_session)):
     try:
-        return applications_service.get_by_id(db, id)
-    except LookupError:
+        return applications_service.get_config(db, json_path)
+    except RuntimeError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
 
 
-@router.get("/{id}/config", response_model=SessionConfigOut)
-def get_application_config(id: int, db: Session = Depends(get_session)):
+@router.get("/{json_path:path}", response_model=ApplicationDetailOut)
+def get_application(json_path: str, db: Session = Depends(get_session)):
     try:
-        return applications_service.get_config(db, id)
-    except LookupError:
+        return applications_service.get_by_id(db, json_path)
+    except RuntimeError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")

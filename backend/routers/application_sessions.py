@@ -21,12 +21,12 @@ class ApplicationSessionOut(BaseModel):
     ends_at: str        # "HH:MM"
     time_left: str      # "MM:SS" countdown — computed server-side
     gdb_host: str
-    gdb_port: str
+    gdb_port: int
     control_devices: list[Any]  # list of control device objects with available_elfs and buttons
 
 
 class StartAppSessionRequest(BaseModel):
-    application_id: int
+    json_path: str      # e.g. "configs/applications/test_button.json"
 
 
 class FlashRequest(BaseModel):
@@ -63,7 +63,7 @@ def get_application_session(
 ):
     try:
         return application_sessions_service.get_by_id(db, id, current_user.id)
-    except LookupError:
+    except RuntimeError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
 
@@ -74,10 +74,8 @@ def start_application_session(
     db: Session = Depends(get_session),
 ):
     try:
-        return application_sessions_service.start(db, body.application_id, current_user.id)
-    except LookupError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ValueError as e:
+        return application_sessions_service.start(db, body.json_path, current_user.id)
+    except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
@@ -90,10 +88,8 @@ def end_application_session(
     try:
         message = application_sessions_service.end(db, id, current_user.id)
         return {"message": message}
-    except LookupError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.post("/{id}/flash", response_model=MessageOut)
@@ -106,10 +102,8 @@ def flash_firmware(
     try:
         message = application_sessions_service.flash(db, id, body.elf_filename)
         return {"message": message}
-    except LookupError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.post("/{id}/command", response_model=MessageOut)
@@ -122,10 +116,8 @@ def send_command(
     try:
         message = application_sessions_service.send_command(db, id, body.uart_command)
         return {"message": message}
-    except LookupError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/{id}/uart/messages", response_model=UartMessagesOut)
@@ -137,7 +129,7 @@ def get_uart_messages(
 ):
     try:
         return application_sessions_service.get_uart_messages(db, id, since_id)
-    except LookupError:
+    except RuntimeError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
 
@@ -151,5 +143,5 @@ def uart_send(
     try:
         message = application_sessions_service.uart_send(db, id, body.text)
         return {"message": message}
-    except LookupError:
+    except RuntimeError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")

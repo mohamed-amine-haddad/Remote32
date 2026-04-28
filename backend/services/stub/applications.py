@@ -187,14 +187,21 @@ def get_all(session) -> list[dict]:
     ]
 
 
-def get_by_id(session, app_id: int) -> dict:
-    app = _APPLICATIONS.get(app_id)
-    if not app:
-        raise LookupError(f"Application {app_id} not found")
-    return {"id": app["id"], "status": app["status"], "descriptor": app["descriptor"]}
+def get_by_id(session, json_path: str) -> dict:
+    try:
+        app = _APPLICATIONS.get(int(json_path))
+    except (ValueError, TypeError):
+        app = None
+    if app is None:
+        raise RuntimeError(f"Application '{json_path}' not found")
+    return {"json_path": json_path, "status": app["status"], "descriptor": app["descriptor"]}
 
 
-def get_config(session, app_id: int) -> dict:
+def get_config(session, json_path: str) -> dict:
+    try:
+        app_id = int(json_path)
+    except (ValueError, TypeError):
+        app_id = None
     if app_id not in _APPLICATIONS:
-        raise LookupError(f"Application {app_id} not found")
+        raise RuntimeError(f"Application '{json_path}' not found")
     return _SESSION_CONFIG

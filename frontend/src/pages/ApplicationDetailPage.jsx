@@ -34,7 +34,7 @@ export default function ApplicationDetailPage({ type = "application" }) {
         setStarting(true)
         setStartError(null)
         try {
-            const session = await apiStartApplicationSession({ application_id: parseInt(id) })
+            const session = await apiStartApplicationSession({ json_path: application.json_path })
             navigate(`/session/${type}/${session.id}`)
         } catch (err) {
             setStartError(err.message)
