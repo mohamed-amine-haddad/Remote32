@@ -14,15 +14,17 @@ load_dotenv()
 
 try:
     from backend.services.config_loader import TargetConfig
+    from backend.services.ssh import ssh_connect
     from backend.database import engine
     from backend.models import Board
 except ImportError:
     from services.config_loader import TargetConfig
+    from services.ssh import ssh_connect
     from database import engine
     from models import Board
 
-
-def _ssh(board_cfg: TargetConfig) -> paramiko.SSHClient:
+"""
+def ssh_connect(board_cfg: TargetConfig) -> paramiko.SSHClient:
     # Opens and returns an SSH connection to the Pi using credentials from the config
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -32,11 +34,11 @@ def _ssh(board_cfg: TargetConfig) -> paramiko.SSHClient:
         password=board_cfg.pi.password
     )
     return client
-
+"""
 
 def is_running_by_pid(openocd_pid: int, board_cfg: TargetConfig) -> bool:
     # Verifies that the process with the given PID is actually openocd on the Pi
-    client = _ssh(board_cfg)
+    client = ssh_connect(board_cfg)
     _, stdout, _ = client.exec_command(f"cat /proc/{openocd_pid}/comm")
     process_name = stdout.read().decode().strip()
     client.close()
@@ -54,7 +56,7 @@ def is_running(board_cfg: TargetConfig) -> bool:
 
 def is_port_in_use(board_cfg: TargetConfig) -> bool:
     # Checks if the board's GDB port is already listening on the Pi
-    client = _ssh(board_cfg)
+    client = ssh_connect(board_cfg)
     _, stdout, _ = client.exec_command(f"ss -tlnp | grep :{board_cfg.gdb_port}")
     result = stdout.read().decode().strip()
     client.close()
@@ -67,7 +69,7 @@ def launch_openocd(board_cfg: TargetConfig) -> int:
     Returns the PID of the started process.
     Raises RuntimeError if OpenOCD fails to start.
     """
-    client = _ssh(board_cfg)
+    client = ssh_connect(board_cfg)
     config_path = os.getenv("CONFIG_PATH") + board_cfg.openocd_cfg
     log_file = f"/tmp/openocd_{board_cfg.serial_number}.log"
     _, stdout, _ = client.exec_command(
@@ -94,7 +96,7 @@ def kill_openocd(board_cfg: TargetConfig) -> None:
     with Session(engine) as session:
         board = session.exec(select(Board).where(Board.serial_number == board_cfg.serial_number)).first()
 
-    client = _ssh(board_cfg)
+    client = ssh_connect(board_cfg)
     client.exec_command(f"kill {board.openocd_pid}")
     client.close()
 
@@ -111,7 +113,7 @@ if __name__ == "__main__":
     # Test 1: SSH connection
     print("--- Test 1: SSH connection ---")
     try:
-        client = _ssh(board_cfg)
+        client = ssh_connect(board_cfg)
         client.close()
         print("PASS — SSH connection successful")
     except Exception as e:
@@ -174,7 +176,7 @@ if __name__ == "__main__":
     # Test 1: SSH connection
     print("--- Test 1: SSH connection ---")
     try:
-        client = _ssh(board_cfg)
+        client = ssh_connect(board_cfg)
         client.close()
         print("PASS — SSH connection successful")
     except Exception as e:
@@ -206,22 +208,11 @@ if __name__ == "__main__":
     else:
         print("SKIP — launch failed")
     """
-    pid = 20030
-
-    # Test 6: kill_openocd
-    print("\n--- Test 6: kill_openocd ---")
-    if pid:
-        # Store PID in DB so kill_openocd can find it
-        with Session(engine) as session:
-            board = session.exec(select(Board).where(Board.serial_number == board_cfg.serial_number)).first()
-            board.openocd_pid = pid
-            board.status = "running"
-            session.add(board)
-            session.commit()
-        try:
-            kill_openocd(board_cfg)
-            print("PASS — killed successfully")
-        except RuntimeError as e:
-            print(f"FAIL — {e}")
-    else:
-        print("SKIP — launch failed")
+    print(is_running(board_cfg))
+    try:
+        client = ssh_connect(board_cfg)
+        _, stdout, _ = client.exec_command("echo ok")
+        print(f"PASS — SSH connected to {board_cfg.pi.host}, got: {stdout.read().decode().strip()}")
+        client.close()
+    except Exception as e:
+        print(f"FAIL — SSH connection: {e}")
