@@ -10,7 +10,9 @@ Guidance for Claude Code when working in this repository.
 code on real STM32 microcontrollers connected to a Raspberry Pi, from their own
 computer. Developed as a Projet de Fin d'Année (PFA).
 
-**Status:** frontend UI prototype done; auth works end-to-end; routers scaffolded (501 placeholders); stub services done + UI pages linked to backend; real services being implemented in parallel. Devices merged into Applications — a device is now an Application with no control boards.
+**Status:** Phase 3 of 5 — stub-to-real wiring. Frontend UI complete. Auth works end-to-end. All real backend services are written and tested in isolation (`session_mgr`, `openocd`, `session`, `devices`, `users`). All routers except `auth` still call stub services — wiring is the current focus. Devices merged into Applications — a device is an Application with no control boards.
+
+**Known issue:** bookings API contract mismatch — frontend sends `resource_type`+`resource_id` but router expects `json_path`; frontend `apiCreateBooking` sends `date`+`start_time` as separate strings but backend expects one combined ISO `datetime`. Fix: update the frontend to send `json_path` and a combined datetime.
 
 ---
 
@@ -19,13 +21,16 @@ remote32/
 ├── backend/
 │   ├── main.py
 │   ├── models.py
+│   ├── database.py
+│   ├── dependencies.py
 │   ├── routers/          # auth.py, devices.py, applications.py, bookings.py, application_sessions.py
-│   ├── services/         # sessions/, openocd.py, devices.py, raspberrys.py, users.py, auth.py
-│   │   └── stub/         # stub implementations used until real services are ready
+│   ├── services/         # auth.py, config_loader.py, devices.py, openocd.py, users.py
+│   │   ├── session/      # session.py (CRUD), session_mgr.py (lifecycle)
+│   │   └── stub/         # stub implementations — used by routers until real wiring is done
 │   ├── configs/
 │   │   ├── devices/      # OpenOCD .cfg files for each physical board
 │   │   └── applications/ # application descriptor JSON files
-│   └── requirements.txt
+│   └── requirements.txt  # UTF-8, includes paramiko
 ├── frontend/
 │   └── src/
 │       ├── pages/
@@ -104,9 +109,11 @@ tcl_port). The `.cfg` files in `configs/devices/` are the OpenOCD configurations
 each board.
 
 **Session** — time-bounded access to an application. One `Session` row in the DB
-references an `Application` (by `application_id`). Can be booked in advance (calendar
-+ duration) or started immediately (fixed admin-set duration). Conflict prevention is
-enforced at the database level and at the session level (async lock).
+references an application by `json_path` (the path to its config file), plus
+`target_board_sn` and optionally `control_board_sn`. Status: `reserved` → `active` →
+`ended`/`cancelled`. Can be booked in advance (calendar + duration) or started
+immediately via `session_mgr.start_session()`. Conflict prevention is enforced at the
+service layer (`session_mgr.book_session`).
 
 ---
 
@@ -138,3 +145,5 @@ JWT issued on login/register, sent as **httpOnly cookie** (not localStorage).
 - Do not use `localStorage` or `sessionStorage` for auth — JWT lives in httpOnly cookies
 - Do not add architecture-specific code — backend must run identically on Windows 11 (dev) and Raspberry Pi OS (production)
 - Do not push to origin.
+- Do not create a `requirements.txt` at the repo root — the only requirements file is `backend/requirements.txt`. The root had a stray one with only paramiko that has been deleted.
+- Do not use Alembic migrations for schema changes — the project uses SQLModel `create_all()` at startup. The `backend/Remote32/versions/` migration files are historical records only.

@@ -6,6 +6,20 @@ Developed as a *Projet de Fin d'Année* (PFA).
 
 ---
 
+## Current status
+
+**Phase 3 of 5 — stub-to-real wiring.**
+
+| Phase | Description | Status |
+|---|---|---|
+| 1 | Frontend UI prototype | Done |
+| 2 | Auth end-to-end | Done |
+| 3 | Real backend services written; wiring into routers | In progress |
+| 4 | Hardware integration (OpenOCD, UART, camera stream) | Not started |
+| 5 | Production deployment (nginx, env vars, DB seeding) | Not started |
+
+---
+
 ## What it does
 
 - **Remote debugging** — exposes each STM32 as a GDB server via OpenOCD. Students connect STM32CubeIDE to an IP:port and debug normally, no physical access needed.
@@ -49,7 +63,7 @@ Browser (STM32CubeIDE + React UI)
 | Layer | Technology |
 |---|---|
 | Frontend | React · Vite · Tailwind CSS v4 · react-router-dom |
-| Backend | FastAPI · SQLModel · SQLite · Alembic · python-jose · pyserial · Uvicorn |
+| Backend | FastAPI · SQLModel · SQLite · python-jose (JWT) · paramiko (SSH) · pyserial · Uvicorn |
 | Infrastructure | nginx · OpenOCD · Raspberry Pi OS |
 
 ---
@@ -185,33 +199,45 @@ Set the host to `retroboy` and port to `3333`. Flash and debug normally.
 ```
 remote32/
 ├── backend/
-│   ├── main.py                  # FastAPI app entry point
-│   ├── models.py                # SQLModel models (User, Device, Application, Booking, Session)
+│   ├── main.py                  # FastAPI app, lifespan config loader + DB init
+│   ├── models.py                # SQLModel tables: Board, Session, User
+│   ├── database.py              # SQLite engine and session factory
+│   ├── dependencies.py          # get_current_user, require_admin FastAPI deps
 │   ├── routers/
-│   │   ├── auth.py              # POST /auth/register, /auth/login, /auth/logout
-│   │   ├── devices.py           # GET/POST/PATCH/DELETE /devices
-│   │   ├── applications.py      # GET/POST/PATCH/DELETE /applications
-│   │   ├── bookings.py          # Reservation calendar and CRUD
-│   │   └── admin.py             # Admin dashboard endpoints
+│   │   ├── auth.py              # /auth/register, /auth/login, /auth/logout, /auth/me
+│   │   ├── devices.py           # GET /devices
+│   │   ├── applications.py      # GET /applications, GET /applications/{json_path}
+│   │   ├── bookings.py          # GET/POST /bookings
+│   │   └── application_sessions.py  # /sessions/application — start, end, flash, UART
 │   ├── services/
-│   │   ├── session_manager.py   # Device locking and duration enforcement
-│   │   ├── openocd_manager.py   # Start/stop OpenOCD, flash .elf files
-│   │   ├── serial_manager.py    # UART command sending via pyserial
-│   │   └── config_loader.py     # Parse hardware and application JSON descriptors
+│   │   ├── auth.py              # Password hashing, JWT, register/login logic
+│   │   ├── config_loader.py     # Load + validate JSON configs at startup
+│   │   ├── devices.py           # Board CRUD (DB operations)
+│   │   ├── openocd.py           # SSH-based OpenOCD launch/kill on Pi
+│   │   ├── users.py             # User CRUD
+│   │   ├── session/
+│   │   │   ├── session.py       # Session CRUD
+│   │   │   └── session_mgr.py   # Lifecycle: book / activate / start / end
+│   │   └── stub/                # In-memory stubs — used by routers while wiring is in progress
 │   ├── configs/
-│   │   ├── devices/             # Hardware descriptor JSON — one file per device
-│   │   └── applications/        # Application descriptor JSON — one file per application
+│   │   ├── devices/             # JSON config for each direct-access board
+│   │   └── applications/        # JSON config for each multi-board lab setup
 │   └── requirements.txt
 │
 ├── frontend/
 │   └── src/
-│       ├── pages/               # One file per route
-│       ├── components/          # Reusable UI components
+│       ├── pages/               # HomePage, LoginPage, RegisterPage, DevicesPage,
+│       │                        # ApplicationsPage, ApplicationDetailPage,
+│       │                        # BookingPage, SessionPage
+│       ├── components/          # Navbar, ProtectedRoute, SerialMonitor,
+│       │                        # ControlDevicePanel, StatusBadge, JsonRenderer
 │       ├── hooks/               # Custom React hooks
-│       ├── api/                 # Axios/fetch wrappers for FastAPI
+│       ├── api/                 # auth.js, devices.js, applications.js,
+│       │                        # bookings.js, applicationSessions.js
+│       └── contexts/            # AuthContext.jsx
 │
 ├── nginx/
-│   └── remote32.conf            # nginx site config
+│   └── remote32.conf            # (not yet written — needed for production)
 │
 ├── .env.example                 # Environment variable template
 ├── CLAUDE.md                    # Context file for Claude Code
