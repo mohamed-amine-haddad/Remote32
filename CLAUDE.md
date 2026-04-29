@@ -10,7 +10,7 @@ Guidance for Claude Code when working in this repository.
 code on real STM32 microcontrollers connected to a Raspberry Pi, from their own
 computer. Developed as a Projet de Fin d'Année (PFA).
 
-**Status:** almost finished UI prototype, backend started but a bit messy.
+**Status:** frontend UI prototype done; auth works end-to-end; routers scaffolded (501 placeholders); stub services done + UI pages linked to backend; real services being implemented in parallel. Devices merged into Applications — a device is now an Application with no control boards.
 
 ---
 
@@ -19,10 +19,11 @@ remote32/
 ├── backend/
 │   ├── main.py
 │   ├── models.py
-│   ├── routers/          # auth.py, devices.py, applications.py, bookings.py, admin.py
-│   ├── services/         # session_manager, openocd_manager, serial_manager, config_loader
+│   ├── routers/          # auth.py, devices.py, applications.py, bookings.py, application_sessions.py
+│   ├── services/         # sessions/, openocd.py, devices.py, raspberrys.py, users.py, auth.py
+│   │   └── stub/         # stub implementations used until real services are ready
 │   ├── configs/
-│   │   ├── devices/      # hardware descriptor JSON files
+│   │   ├── devices/      # OpenOCD .cfg files for each physical board
 │   │   └── applications/ # application descriptor JSON files
 │   └── requirements.txt
 ├── frontend/
@@ -86,19 +87,26 @@ tailwindcss 4.2.2 vite 8.0.7
 
 ## Key domain concepts
 
-**Device** — one STM32 exposed as a remote GDB server. Users connect STM32CubeIDE to
-the IP:port provided by the platform.
+**Application** — a named lab setup with one **main board** (the target STM32, accessed
+via GDB) plus one or more **control boards**. Control boards are flashed automatically
+at session start; the user switches `.elf` firmware from a dropdown and sends UART
+commands via button panels.
 
-**Application** — one main device (same as above) + one or more control devices.
-Control devices are flashed automatically at session start. The user can switch
-their `.elf` firmware from a dropdown during the session. Each `.elf` has a
-button panel defined in the application JSON config — buttons send UART commands
-via pyserial to the control STM32.
+**Device** — an application with **no control boards**: just a target STM32 exposed as
+a remote GDB server. Internally a device is stored and handled identically to an
+application; the distinction is UI-only (separate browse pages, no control panel in the
+session view). This avoids duplicate code for booking, session management, and the
+detail/session pages.
 
-**Session** — time-bounded access to a device or application. Can be booked in
-advance (calendar + duration) or started immediately (fixed admin-set duration).
-Conflict prevention is enforced at the database level (overlapping reservation
-constraint) and at the session level (async lock).
+**Board** — one physical STM32 connected to the Pi. Tracked in the database because it
+carries runtime state (status, openocd_pid) and port assignments (gdb_port, telnet_port,
+tcl_port). The `.cfg` files in `configs/devices/` are the OpenOCD configurations for
+each board.
+
+**Session** — time-bounded access to an application. One `Session` row in the DB
+references an `Application` (by `application_id`). Can be booked in advance (calendar
++ duration) or started immediately (fixed admin-set duration). Conflict prevention is
+enforced at the database level and at the session level (async lock).
 
 ---
 

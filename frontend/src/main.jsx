@@ -11,11 +11,9 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DevicesPage from './pages/DevicesPage'
 import ApplicationsPage from './pages/ApplicationsPage'
-import DeviceDetailPage from './pages/DeviceDetailPage'
 import ApplicationDetailPage from './pages/ApplicationDetailPage'
 import BookingPage from './pages/BookingPage'
-import DeviceSessionPage from './pages/DeviceSessionPage'
-import ApplicationSessionPage from './pages/ApplicationSessionPage'
+import SessionPage from './pages/SessionPage'
 import ProfilePage from './pages/ProfilePage'
 
 createRoot(document.getElementById('root')).render(
@@ -30,13 +28,13 @@ createRoot(document.getElementById('root')).render(
 
           {/* Browsable without auth — anyone can see what's available */}
           <Route path="/devices" element={<DevicesPage />} />
+          <Route path="/devices/:id" element={<ApplicationDetailPage type="device" />} />
           <Route path="/applications" element={<ApplicationsPage />} />
-          <Route path="/devices/:id" element={<DeviceDetailPage />} />
-          <Route path="/applications/:id" element={<ApplicationDetailPage />} />
+          <Route path="/applications/:id" element={<ApplicationDetailPage type="application" />} />
           <Route path="/book/device/:id" element={<ProtectedRoute><BookingPage type="device" /></ProtectedRoute>} />
           <Route path="/book/application/:id" element={<ProtectedRoute><BookingPage type="application" /></ProtectedRoute>} />
-          <Route path="/session/device/:id" element={<ProtectedRoute><DeviceSessionPage /></ProtectedRoute>} />
-          <Route path="/session/application/:id" element={<ProtectedRoute><ApplicationSessionPage /></ProtectedRoute>} />
+          <Route path="/session/device/:id"      element={<ProtectedRoute><SessionPage /></ProtectedRoute>} />
+          <Route path="/session/application/:id" element={<ProtectedRoute><SessionPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
