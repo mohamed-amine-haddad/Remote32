@@ -4,7 +4,7 @@
     "target": {
         "serial_number": "066FFF3632524B3043205333",
         "pi": {
-            "host": "retroboy",
+            "host": "remote32.duckdns.org",
             "user": "retroboy69",
             "password": "Admin060606"
         },
@@ -16,7 +16,7 @@
     "control": {
         "serial_number": "066DFF535550755187063847",
         "pi": {
-            "host": "retroboy",
+            "host": "remote32.duckdns.org",
             "user": "retroboy69",
             "password": "Admin060606"
         },
@@ -42,5 +42,11 @@
                 ]
             }
         ]
+    },
+    "camera": {
+        "host": "remote32.duckdns.org",
+        "user": "retroboy69",
+        "password": "Admin060606",
+        "port": 8080
     }
 }

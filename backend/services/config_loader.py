@@ -26,6 +26,12 @@ class TargetConfig(BaseModel):
     telnet_port : int
     tcl_port : int
 
+class CameraConfig(BaseModel):
+    host     : str
+    user     : str
+    password : str
+    port     : int
+
 class ButtonConfig(BaseModel):
     label : str
     command : str
@@ -49,6 +55,7 @@ class SessionConfig(BaseModel):
     description : str = ""
     target      : TargetConfig
     control     : Optional[ControlConfig] = None
+    camera      : Optional[CameraConfig] = None
     @property
     def is_application(self) -> bool:
         return self.control is not None

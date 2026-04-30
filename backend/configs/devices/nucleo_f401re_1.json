@@ -4,7 +4,7 @@
     "target": {
         "serial_number": "066FFF3632524B3043205333",
         "pi": {
-            "host": "retroboy",
+            "host": "remote32.duckdns.org",
             "user": "retroboy69",
             "password": "Admin060606"
         },
@@ -12,5 +12,11 @@
         "gdb_port": 3333,
         "telnet_port": 4444,
         "tcl_port": 6666
+    },
+    "camera": {
+        "host": "remote32.duckdns.org",
+        "user": "retroboy69",
+        "password": "Admin060606",
+        "port": 8080
     }
 }
