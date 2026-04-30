@@ -31,10 +31,11 @@ def _build_control_devices(config: SessionConfig) -> list[dict]:
     return [{
         "device_id":   ctrl.serial_number,
         "label":       config.name,
-        "default_elf": ctrl.firmwares[0].name if ctrl.firmwares else "",
+        "default_elf": ctrl.firmwares[0].bin_file if ctrl.firmwares else "",
         "available_elfs": [
             {
-                "filename": fw.name,
+                "filename": fw.bin_file,
+                "name":     fw.name,
                 "buttons":  [{"label": b.label, "uart_command": b.command} for b in fw.buttons],
             }
             for fw in ctrl.firmwares
@@ -108,3 +109,16 @@ def uart_send(db: DBSession, session_id: int, text: str) -> str:
     get_session_by_id(db, session_id)
     # TODO: send over UART/serial connection
     return f"Sent: {text}"
+
+
+def camera_stream(db: DBSession, session_id: int, user_id: int, configs: dict[str, SessionConfig]) -> str:
+    record = get_session_by_id(db, session_id)
+    if record.user_id != user_id:
+        raise RuntimeError(f"Session {session_id} not found")
+    if record.status != "active":
+        raise RuntimeError(f"Session {session_id} is not active")
+    config = configs[record.json_path]
+    if config.camera is None:
+        raise RuntimeError(f"No camera configured for '{config.name}'")
+    from backend.services.camera import open_camera
+    return open_camera(config)

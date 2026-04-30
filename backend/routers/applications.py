@@ -72,7 +72,7 @@ def _build_descriptor(cfg) -> dict:
             "device_id":          cfg.target.serial_number,
             "role":               "Target board",
             "openocd_config_path": cfg.target.openocd_cfg,
-            "camera":             {"enabled": False, "stream_path": None},
+            "camera":             {"enabled": cfg.camera is not None, "stream_path": None},
         },
         "control_devices": [
             {
@@ -80,7 +80,8 @@ def _build_descriptor(cfg) -> dict:
                 "label":     cfg.name,
                 "available_elfs": [
                     {
-                        "filename": fw.name,
+                        "filename": fw.bin_file,
+                        "name":     fw.name,
                         "buttons": [
                             {"label": b.label, "uart_command": b.command}
                             for b in fw.buttons

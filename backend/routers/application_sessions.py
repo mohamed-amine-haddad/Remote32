@@ -56,6 +56,10 @@ class MessageOut(BaseModel):
     message: str
 
 
+class CameraOut(BaseModel):
+    stream_url: str
+
+
 # ---------- Endpoints ----------
 
 @router.get("/{id}", response_model=ApplicationSessionOut)
@@ -140,6 +144,21 @@ def get_uart_messages(
         return application_sessions_service.get_uart_messages(db, id, since_id)
     except RuntimeError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+
+@router.get("/{id}/camera", response_model=CameraOut)
+def get_camera_stream(
+    id: int,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    try:
+        configs = request.app.state.configs
+        url = application_sessions_service.camera_stream(db, id, current_user.id, configs)
+        return {"stream_url": url}
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.post("/{id}/uart/send", response_model=MessageOut)
