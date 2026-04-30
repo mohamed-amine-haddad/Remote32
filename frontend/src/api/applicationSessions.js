@@ -55,3 +55,7 @@ export function apiUartSend(sessionId, text) {
         body: JSON.stringify({ text }),
     })
 }
+
+export function apiGetCameraStream(id) {
+    return request(`/${id}/camera`)
+}

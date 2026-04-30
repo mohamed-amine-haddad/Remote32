@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import ControlDevicePanel from '../components/ControlDevicePanel'
 import SerialMonitor from '../components/SerialMonitor'
-import { apiGetApplicationSession, apiEndApplicationSession, apiFlash, apiCommand } from '../api/applicationSessions'
+import { apiGetApplicationSession, apiEndApplicationSession, apiFlash, apiCommand, apiGetCameraStream } from '../api/applicationSessions'
 
 // ── CopyButton ─────────────────────────────────────────────────────────────────
 
@@ -92,12 +92,17 @@ export default function SessionPage() {
     const [error,     setError]     = useState(null)
     const [ending,    setEnding]    = useState(false)
     const [activeTab, setActiveTab] = useState(0)
+    const [cameraUrl, setCameraUrl] = useState(null)
 
     useEffect(() => {
         apiGetApplicationSession(id)
             .then(setSession)
             .catch(() => setSession(null))
             .finally(() => setLoading(false))
+
+        apiGetCameraStream(id)
+            .then(data => setCameraUrl(data.stream_url))
+            .catch(() => setCameraUrl(""))
     }, [id])
 
     const hasControlDevices = (session?.control_devices?.length ?? 0) > 0
@@ -199,14 +204,27 @@ export default function SessionPage() {
                             className="relative w-full bg-gray-900 border-2 border-black"
                             style={{ aspectRatio: "16/9" }}
                         >
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-500 select-none">
-                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M23 7l-7 5 7 5V7z" />
-                                    <rect x="1" y="5" width="15" height="14" rx="0" />
-                                </svg>
-                                <span className="text-xs font-medium">Camera stream — coming soon</span>
-                            </div>
+                            {cameraUrl === null ? (
+                                <div className="absolute inset-0 flex items-center justify-center text-gray-500 select-none">
+                                    <span className="text-xs font-medium">Starting camera…</span>
+                                </div>
+                            ) : cameraUrl === "" ? (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-500 select-none">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M23 7l-7 5 7 5V7z" />
+                                        <rect x="1" y="5" width="15" height="14" rx="0" />
+                                    </svg>
+                                    <span className="text-xs font-medium">Camera unavailable</span>
+                                </div>
+                            ) : (
+                                <img
+                                    src={cameraUrl}
+                                    alt="Live camera feed"
+                                    className="w-full h-full object-contain"
+                                    onError={() => setCameraUrl("")}
+                                />
+                            )}
                         </div>
                     </div>
 

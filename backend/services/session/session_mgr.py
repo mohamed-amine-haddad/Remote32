@@ -46,9 +46,11 @@ def book_session(configs: dict[str, SessionConfig], json_path: str, user_id: int
     if get_active_by_user(db, user_id):
         raise RuntimeError("You can't book a session when you currently have an active one")
     
+    """
     # Check if the user already has a reserved session
     if get_reserved_by_user(db, user_id):
         raise RuntimeError("You can only book one session at a time")
+    """
 
     # Find the closest upcoming reservation for both target and control boards
     time_until_next = get_time_until_next_reservation(db, target_board_cfg.serial_number, start_time)
