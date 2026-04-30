@@ -1,5 +1,6 @@
 {
     "name": "Test Button",
+    "description": "Button emulation application. Main board receives USER and RESET button events over UART. Control board sends button press and release signals, letting you trigger the main board without physical access to the hardware.",
     "target": {
         "serial_number": "066FFF3632524B3043205333",
         "pi": {

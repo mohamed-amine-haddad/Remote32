@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlmodel import Session
 from datetime import datetime
@@ -6,7 +6,7 @@ from datetime import datetime
 from backend.database import get_session
 from backend.dependencies import get_current_user
 from backend.models import User
-import backend.services.stub.bookings as bookings_service
+import backend.services.bookings as bookings_service
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
@@ -21,7 +21,7 @@ class BookingOut(BaseModel):
 
 
 class CreateBookingRequest(BaseModel):
-    json_path: str       # e.g. "configs/applications/test_button.json"
+    json_path: str
     start_time: datetime
     duration_minutes: int
 
@@ -42,13 +42,15 @@ def list_bookings(
 @router.post("", response_model=BookingOut, status_code=status.HTTP_201_CREATED)
 def create_booking(
     body: CreateBookingRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     try:
+        configs = request.app.state.configs
         return bookings_service.create(
-            db, current_user.id, body.json_path,
-            body.start_time, body.duration_minutes,
+            configs, db, current_user.id,
+            body.json_path, body.start_time, body.duration_minutes,
         )
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

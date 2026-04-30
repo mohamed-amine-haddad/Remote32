@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlmodel import Session
 from typing import Any
@@ -6,7 +6,7 @@ from typing import Any
 from backend.database import get_session
 from backend.dependencies import get_current_user
 from backend.models import User
-import backend.services.stub.application_sessions as application_sessions_service
+import backend.services.application_sessions as application_sessions_service
 
 router = APIRouter(prefix="/sessions/application", tags=["application-sessions"])
 
@@ -16,17 +16,17 @@ router = APIRouter(prefix="/sessions/application", tags=["application-sessions"]
 class ApplicationSessionOut(BaseModel):
     id: int
     app_name: str
-    status: str         # reserved | active | ended | cancelled
-    started_at: str     # "HH:MM"
-    ends_at: str        # "HH:MM"
-    time_left: str      # "MM:SS" countdown — computed server-side
+    status: str
+    started_at: str
+    ends_at: str
+    time_left: str
     gdb_host: str
     gdb_port: int
-    control_devices: list[Any]  # list of control device objects with available_elfs and buttons
+    control_devices: list[Any]
 
 
 class StartAppSessionRequest(BaseModel):
-    json_path: str      # e.g. "configs/applications/test_button.json"
+    json_path: str
 
 
 class FlashRequest(BaseModel):
@@ -40,14 +40,17 @@ class CommandRequest(BaseModel):
 class UartSendRequest(BaseModel):
     text: str
 
+
 class UartMessage(BaseModel):
     id: int
-    direction: str   # "tx" | "rx"
+    direction: str
     text: str
-    timestamp: str   # "HH:MM:SS"
+    timestamp: str
+
 
 class UartMessagesOut(BaseModel):
     messages: list[UartMessage]
+
 
 class MessageOut(BaseModel):
     message: str
@@ -58,11 +61,13 @@ class MessageOut(BaseModel):
 @router.get("/{id}", response_model=ApplicationSessionOut)
 def get_application_session(
     id: int,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     try:
-        return application_sessions_service.get_by_id(db, id, current_user.id)
+        configs = request.app.state.configs
+        return application_sessions_service.get_by_id(db, id, current_user.id, configs)
     except RuntimeError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
@@ -70,11 +75,13 @@ def get_application_session(
 @router.post("", response_model=ApplicationSessionOut, status_code=status.HTTP_201_CREATED)
 def start_application_session(
     body: StartAppSessionRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     try:
-        return application_sessions_service.start(db, body.json_path, current_user.id)
+        configs = request.app.state.configs
+        return application_sessions_service.start(configs, db, body.json_path, current_user.id)
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
@@ -82,11 +89,13 @@ def start_application_session(
 @router.post("/{id}/end", response_model=MessageOut)
 def end_application_session(
     id: int,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     try:
-        message = application_sessions_service.end(db, id, current_user.id)
+        configs = request.app.state.configs
+        message = application_sessions_service.end(db, configs, id, current_user.id)
         return {"message": message}
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

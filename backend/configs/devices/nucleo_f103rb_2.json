@@ -1,5 +1,6 @@
 {
     "name": "Nucleo-F103RB",
+    "description": "STM32F103RB Nucleo board. ARM Cortex-M3 at 72 MHz. Full SWD debug access via OpenOCD. Suitable for basic peripheral experiments and low-cost prototyping.",
     "target": {
         "serial_number": "066DFF535550755187063847",
         "pi": {

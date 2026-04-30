@@ -21,6 +21,8 @@ async def lifespan(app: FastAPI):
     with Session(engine) as db:
         validate_configs(configs, db)
     app.state.configs = configs
+    # Stable integer ID → json_path mapping (order matches dict insertion order)
+    app.state.configs_ids = {i + 1: path for i, path in enumerate(configs.keys())}
     yield
 
 

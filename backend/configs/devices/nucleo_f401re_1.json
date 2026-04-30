@@ -1,5 +1,6 @@
 {
     "name": "Nucleo-F401RE",
+    "description": "STM32F401RE Nucleo board. ARM Cortex-M4 at 84 MHz. Full SWD debug access via OpenOCD. Suitable for GPIO, timers, UART, SPI, I2C, and ADC experiments.",
     "target": {
         "serial_number": "066FFF3632524B3043205333",
         "pi": {

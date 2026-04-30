@@ -16,11 +16,8 @@ async function request(path, options = {}) {
     return res.json()
 }
 
-export function apiListBookings(resourceType, resourceId) {
-    const params = new URLSearchParams({
-        resource_type: resourceType,
-        resource_id: resourceId,
-    })
+export function apiListBookings(jsonPath) {
+    const params = new URLSearchParams({ json_path: jsonPath })
     return request(`?${params}`)
 }
 

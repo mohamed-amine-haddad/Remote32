@@ -45,9 +45,10 @@ class ControlConfig(BaseModel):
     firmwares : list[FirmwareConfig]
 
 class SessionConfig(BaseModel):
-    name    : str
-    target  : TargetConfig
-    control : Optional[ControlConfig] = None
+    name        : str
+    description : str = ""
+    target      : TargetConfig
+    control     : Optional[ControlConfig] = None
     @property
     def is_application(self) -> bool:
         return self.control is not None

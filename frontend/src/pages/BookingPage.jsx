@@ -48,6 +48,7 @@ export default function BookingPage({ type }) {
     const navigate = useNavigate()
 
     const [config,       setConfig]       = useState(null)
+    const [jsonPath,     setJsonPath]     = useState(null)
     const [reservations, setReservations] = useState([])
     const [loading,      setLoading]      = useState(true)
 
@@ -59,14 +60,14 @@ export default function BookingPage({ type }) {
     const [submitting,  setSubmitting]  = useState(false)
 
     useEffect(() => {
-        const configFetch = apiGetApplicationConfig(id)
-
-        Promise.all([configFetch, apiListBookings("application", id)])
-            .then(([cfg, res]) => {
+        apiGetApplicationConfig(id)
+            .then(cfg => {
                 setConfig(cfg)
+                setJsonPath(cfg.json_path)
                 setDuration(cfg.min_duration_minutes)
-                setReservations(res)
+                return apiListBookings(cfg.json_path)
             })
+            .then(setReservations)
             .catch(() => {})
             .finally(() => setLoading(false))
     }, [id, type])
@@ -129,11 +130,10 @@ export default function BookingPage({ type }) {
 
         setSubmitting(true)
         try {
+            const dateStr = toDateStr(selectedDay)
             await apiCreateBooking({
-                resource_type: "application",
-                resource_id: parseInt(id),
-                date: toDateStr(selectedDay),
-                start_time: startTime,
+                json_path:        jsonPath,
+                start_time:       `${dateStr}T${startTime}:00`,
                 duration_minutes: duration,
             })
             setSuccess(true)
