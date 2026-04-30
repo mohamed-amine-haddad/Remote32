@@ -10,7 +10,9 @@ Guidance for Claude Code when working in this repository.
 code on real STM32 microcontrollers connected to a Raspberry Pi, from their own
 computer. Developed as a Projet de Fin d'Année (PFA).
 
-**Status:** almost finished UI prototype, backend started but a bit messy.
+**Status:** Phase 3 of 5 — stub-to-real wiring. Frontend UI complete. Auth works end-to-end. All real backend services are written and tested in isolation (`session_mgr`, `openocd`, `session`, `devices`, `users`). All routers except `auth` still call stub services — wiring is the current focus. Devices merged into Applications — a device is an Application with no control boards.
+
+**Known issue:** bookings API contract mismatch — frontend sends `resource_type`+`resource_id` but router expects `json_path`; frontend `apiCreateBooking` sends `date`+`start_time` as separate strings but backend expects one combined ISO `datetime`. Fix: update the frontend to send `json_path` and a combined datetime.
 
 ---
 
@@ -19,12 +21,16 @@ remote32/
 ├── backend/
 │   ├── main.py
 │   ├── models.py
-│   ├── routers/          # auth.py, devices.py, applications.py, bookings.py, admin.py
-│   ├── services/         # session_manager, openocd_manager, serial_manager, config_loader
+│   ├── database.py
+│   ├── dependencies.py
+│   ├── routers/          # auth.py, devices.py, applications.py, bookings.py, application_sessions.py
+│   ├── services/         # auth.py, config_loader.py, devices.py, openocd.py, users.py
+│   │   ├── session/      # session.py (CRUD), session_mgr.py (lifecycle)
+│   │   └── stub/         # stub implementations — used by routers until real wiring is done
 │   ├── configs/
-│   │   ├── devices/      # hardware descriptor JSON files
+│   │   ├── devices/      # OpenOCD .cfg files for each physical board
 │   │   └── applications/ # application descriptor JSON files
-│   └── requirements.txt
+│   └── requirements.txt  # UTF-8, includes paramiko
 ├── frontend/
 │   └── src/
 │       ├── pages/
@@ -86,19 +92,28 @@ tailwindcss 4.2.2 vite 8.0.7
 
 ## Key domain concepts
 
-**Device** — one STM32 exposed as a remote GDB server. Users connect STM32CubeIDE to
-the IP:port provided by the platform.
+**Application** — a named lab setup with one **main board** (the target STM32, accessed
+via GDB) plus one or more **control boards**. Control boards are flashed automatically
+at session start; the user switches `.elf` firmware from a dropdown and sends UART
+commands via button panels.
 
-**Application** — one main device (same as above) + one or more control devices.
-Control devices are flashed automatically at session start. The user can switch
-their `.elf` firmware from a dropdown during the session. Each `.elf` has a
-button panel defined in the application JSON config — buttons send UART commands
-via pyserial to the control STM32.
+**Device** — an application with **no control boards**: just a target STM32 exposed as
+a remote GDB server. Internally a device is stored and handled identically to an
+application; the distinction is UI-only (separate browse pages, no control panel in the
+session view). This avoids duplicate code for booking, session management, and the
+detail/session pages.
 
-**Session** — time-bounded access to a device or application. Can be booked in
-advance (calendar + duration) or started immediately (fixed admin-set duration).
-Conflict prevention is enforced at the database level (overlapping reservation
-constraint) and at the session level (async lock).
+**Board** — one physical STM32 connected to the Pi. Tracked in the database because it
+carries runtime state (status, openocd_pid) and port assignments (gdb_port, telnet_port,
+tcl_port). The `.cfg` files in `configs/devices/` are the OpenOCD configurations for
+each board.
+
+**Session** — time-bounded access to an application. One `Session` row in the DB
+references an application by `json_path` (the path to its config file), plus
+`target_board_sn` and optionally `control_board_sn`. Status: `reserved` → `active` →
+`ended`/`cancelled`. Can be booked in advance (calendar + duration) or started
+immediately via `session_mgr.start_session()`. Conflict prevention is enforced at the
+service layer (`session_mgr.book_session`).
 
 ---
 
@@ -130,3 +145,5 @@ JWT issued on login/register, sent as **httpOnly cookie** (not localStorage).
 - Do not use `localStorage` or `sessionStorage` for auth — JWT lives in httpOnly cookies
 - Do not add architecture-specific code — backend must run identically on Windows 11 (dev) and Raspberry Pi OS (production)
 - Do not push to origin.
+- Do not create a `requirements.txt` at the repo root — the only requirements file is `backend/requirements.txt`. The root had a stray one with only paramiko that has been deleted.
+- Do not use Alembic migrations for schema changes — the project uses SQLModel `create_all()` at startup. The `backend/Remote32/versions/` migration files are historical records only.

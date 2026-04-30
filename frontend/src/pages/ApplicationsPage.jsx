@@ -1,31 +1,21 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import StatusBadge from '../components/StatusBadge'
 import clsx from 'clsx'
-
-// Mock data
-const APPLICATIONS = [
-    {
-        id: 1,
-        name: "Motor Control Lab",
-        status: "free",
-        description: "Full closed-loop DC motor control application. Main STM32 runs a PID controller over PWM. Control board sends speed setpoint commands and direction signals over UART. Includes encoder feedback and current sensing.",
-    },
-    {
-        id: 2,
-        name: "Sensor Array",
-        status: "reserved",
-        description: "Multi-sensor data acquisition platform. Main device aggregates readings from temperature, pressure, and proximity sensors over I2C. Control board triggers sampling sequences and configures sensor modes via UART commands.",
-    },
-    {
-        id: 3,
-        name: "Communication Bus Demo",
-        status: "occupied",
-        description: "Demonstrates CAN bus communication between two STM32 nodes. The main device acts as a master node, while the control board simulates a slave ECU responding to standardized message frames.",
-    },
-]
+import { apiListApplications } from '../api/applications'
 
 export default function ApplicationsPage() {
+
+    const [applications, setApplications] = useState([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        apiListApplications()
+            .then(setApplications)
+            .catch(() => setApplications([]))
+            .finally(() => setLoading(false))
+    }, [])
 
     const page = "min-h-screen bg-white font-body flex flex-col"
     const content = "flex-1 px-6 md:px-16 lg:px-32 py-12"
@@ -59,6 +49,15 @@ export default function ApplicationsPage() {
     const cardNameLink = "font-bold text-navy underline underline-offset-2 hover:text-black text-base"
     const cardDesc = "text-sm text-gray-600 line-clamp-10"
 
+    if (loading) return (
+        <div className={page}>
+            <Navbar />
+            <div className={content}>
+                <p className="text-sm text-gray-400 font-medium">Loading applications…</p>
+            </div>
+        </div>
+    )
+
     return (
         <div className={page}>
             <Navbar />
@@ -66,7 +65,7 @@ export default function ApplicationsPage() {
 
                 <h1 className={heading}>Applications</h1>
                 <p className={subheading}>
-                    {APPLICATIONS.length} application{APPLICATIONS.length !== 1 ? 's' : ''} available — Select application for more details
+                    {applications.length} application{applications.length !== 1 ? 's' : ''} available — Select application for more details
                 </p>
 
                 {/* DESKTOP TABLE */}
@@ -79,7 +78,7 @@ export default function ApplicationsPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {APPLICATIONS.map(app => (
+                        {applications.map(app => (
                             <tr key={app.id} className={tr}>
                                 <td className={td}>
                                     <Link to={`/applications/${app.id}`} className={nameLink}>
@@ -99,7 +98,7 @@ export default function ApplicationsPage() {
 
                 {/* MOBILE CARDS */}
                 <div className={cardList}>
-                    {APPLICATIONS.map(app => (
+                    {applications.map(app => (
                         <div key={app.id} className={card}>
                             <div className={cardHeader}>
                                 <Link to={`/applications/${app.id}`} className={cardNameLink}>

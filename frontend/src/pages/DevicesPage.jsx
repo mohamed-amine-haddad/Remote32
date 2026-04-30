@@ -1,37 +1,21 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import StatusBadge from '../components/StatusBadge'
 import clsx from 'clsx'
-
-// Mock data
-const DEVICES = [
-    {
-        id: 1,
-        name: "STM32-01",
-        status: "free",
-        description: "STM32F4 Discovery board. General-purpose device suitable for GPIO, timers, UART, SPI and I2C experiments. Connected via SWD.",
-    },
-    {
-        id: 2,
-        name: "STM32-02",
-        status: "occupied",
-        description: "STM32G0 Nucleo board. Ideal for low-power experiments and ADC/DAC signal processing labs. Full debug access via SWD.",
-    },
-    {
-        id: 3,
-        name: "STM32-03",
-        status: "reserved",
-        description: "STM32H7 evaluation board. High-performance board with FPU support. Used for DSP and real-time control labs requiring floating-point operations.",
-    },
-    {
-        id: 4,
-        name: "STM32-04",
-        status: "free",
-        description: "STM32L4 Nucleo board configured for ultra-low-power mode experiments. Suitable for battery-powered system prototyping.",
-    },
-]
+import { apiListDevices } from '../api/devices'
 
 export default function DevicesPage() {
+
+    const [devices, setDevices] = useState([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        apiListDevices()
+            .then(setDevices)
+            .catch(() => setDevices([]))
+            .finally(() => setLoading(false))
+    }, [])
 
     const page = "min-h-screen bg-white font-body flex flex-col"
     const content = "flex-1 px-6 md:px-16 lg:px-32 py-12"
@@ -39,7 +23,6 @@ export default function DevicesPage() {
     const heading = "font-display text-5xl md:text-6xl text-navy mb-2"
     const subheading = "text-sm text-gray-500 mb-8"
 
-    // Desktop table — hidden on mobile
     const table = "w-full border-2 border-black hidden md:table"
     const thead = "bg-navy text-white"
     const th = "px-4 py-3 text-left text-xs font-bold uppercase tracking-widest"
@@ -52,11 +35,8 @@ export default function DevicesPage() {
         "hover:text-black",
     ].join(" ")
 
-    // Description text — line-clamp-2 limits to 2 lines with ellipsis
-    // This keeps all rows the same height regardless of description length
     const descText = "text-sm text-gray-600 line-clamp-10"
 
-    // Mobile cards — visible only on mobile, hidden on md+
     const cardList = "flex flex-col gap-4 md:hidden"
 
     const card = [
@@ -69,6 +49,15 @@ export default function DevicesPage() {
     const cardNameLink = "font-bold text-navy underline underline-offset-2 hover:text-black text-base"
     const cardDesc = "text-sm text-gray-600 line-clamp-10"
 
+    if (loading) return (
+        <div className={page}>
+            <Navbar />
+            <div className={content}>
+                <p className="text-sm text-gray-400 font-medium">Loading devices…</p>
+            </div>
+        </div>
+    )
+
     return (
         <div className={page}>
             <Navbar />
@@ -76,7 +65,7 @@ export default function DevicesPage() {
 
                 <h1 className={heading}>Devices</h1>
                 <p className={subheading}>
-                    {DEVICES.length} device{DEVICES.length !== 1 ? 's' : ''} available — Select device for more details
+                    {devices.length} device{devices.length !== 1 ? 's' : ''} available — Select a device for direct GDB access
                 </p>
 
                 {/* DESKTOP TABLE */}
@@ -85,12 +74,11 @@ export default function DevicesPage() {
                         <tr>
                             <th className={th}>Name</th>
                             <th className={th}>Status</th>
-                            {/* Description column takes all remaining space */}
                             <th className={clsx(th, "w-full")}>Description</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {DEVICES.map(device => (
+                        {devices.map(device => (
                             <tr key={device.id} className={tr}>
                                 <td className={td}>
                                     <Link to={`/devices/${device.id}`} className={nameLink}>
@@ -110,7 +98,7 @@ export default function DevicesPage() {
 
                 {/* MOBILE CARDS */}
                 <div className={cardList}>
-                    {DEVICES.map(device => (
+                    {devices.map(device => (
                         <div key={device.id} className={card}>
                             <div className={cardHeader}>
                                 <Link to={`/devices/${device.id}`} className={cardNameLink}>

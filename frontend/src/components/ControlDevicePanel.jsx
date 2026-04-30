@@ -8,17 +8,19 @@ import { useState, useEffect, useRef } from 'react'
 // all panels stay mounted (only visibility toggles).
 //
 // Props:
-//   device — one element from SESSION.control_devices
+//   device    — one element from session.control_devices
+//   onFlash   — (elfFilename: string) => void   called when firmware changes
+//   onCommand — (uartCommand: string) => void   called when a button is clicked
 
-export default function ControlDevicePanel({ device }) {
+export default function ControlDevicePanel({ device, onFlash, onCommand }) {
 
     const [selectedElf, setSelectedElf]   = useState(device.default_elf)
     const [commandLog,  setCommandLog]    = useState([])
-    const [lastClicked, setLastClicked]   = useState(null)   // index of flashing button
-    const [isFlashing,  setIsFlashing]    = useState(false)  // firmware flash in progress
+    const [lastClicked, setLastClicked]   = useState(null)
+    const [isFlashing,  setIsFlashing]    = useState(false)
 
     const logRef     = useRef(null)
-    const mountedRef = useRef(false)   // skip the flash effect on first render
+    const mountedRef = useRef(false)
 
     // Auto-scroll the log to the latest entry whenever a new command is appended
     useEffect(() => {
@@ -34,8 +36,8 @@ export default function ControlDevicePanel({ device }) {
             mountedRef.current = true
             return
         }
-        console.log("flash:", selectedElf)
-        setLastClicked(null)   // cancel any active button flash
+        onFlash?.(selectedElf)
+        setLastClicked(null)
         setIsFlashing(true)
         const timer = setTimeout(() => setIsFlashing(false), 2000)
         return () => clearTimeout(timer)
@@ -46,7 +48,7 @@ export default function ControlDevicePanel({ device }) {
     const buttons    = currentElf ? currentElf.buttons : []
 
     const handleCommand = (btn, index) => {
-        console.log("uart:", btn.uart_command)
+        onCommand?.(btn.uart_command)
         const timestamp = new Date().toLocaleTimeString()
         setCommandLog(prev => [...prev, `[${timestamp}]  →  ${btn.uart_command}`])
         setLastClicked(index)
@@ -64,7 +66,7 @@ export default function ControlDevicePanel({ device }) {
         "cursor-pointer focus:outline-none",
     ].join(" ")
 
-    const flashNote  = "text-xs text-gray-400 mt-2"
+    const flashNote   = "text-xs text-gray-400 mt-2"
     const flashingTxt = "text-xs font-bold text-accent mt-2 animate-pulse"
 
     const cmdBtn = [

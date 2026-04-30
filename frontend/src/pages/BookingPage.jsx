@@ -1,28 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import Calendar from 'react-calendar'
 import Navbar from '../components/Navbar'
-
-// ── Mock config (will come from backend) ─────────────────────────────────────
-
-const SESSION_CONFIG = {
-    min_duration_minutes: 15,
-    max_duration_minutes: 60,
-    slot_step_minutes: 15,     // granularity of the timeline blocks
-}
-
-// Mock existing reservations — each has a date, start time, end time, status
-// In production these come from GET /bookings?resource_id=X&date=Y
-const MOCK_RESERVATIONS = [
-    { date: '2026-04-10', start: '09:00', end: '10:00', status: 'reserved' },
-    { date: '2026-04-10', start: '14:00', end: '14:30', status: 'occupied' },
-    { date: '2026-04-11', start: '10:00', end: '11:00', status: 'reserved' },
-    { date: '2026-04-13', start: '08:00', end: '09:00', status: 'occupied' },
-]
+import { apiListBookings, apiCreateBooking } from '../api/bookings'
+import { apiGetApplicationConfig } from '../api/applications'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Format a Date object as "YYYY-MM-DD" for comparison with mock data
+// Format a Date object as "YYYY-MM-DD"
 function toDateStr(date) {
     return date.toISOString().split('T')[0]
 }
@@ -51,7 +36,6 @@ function hasConflict(reservations, startMins, durationMins) {
     return reservations.some(r => {
         const rStart = toMinutes(r.start)
         const rEnd   = toMinutes(r.end)
-        // Overlap: proposed start < existing end AND proposed end > existing start
         return startMins < rEnd && endMins > rStart
     })
 }
@@ -63,37 +47,56 @@ export default function BookingPage({ type }) {
     const { id } = useParams()
     const navigate = useNavigate()
 
-    const [selectedDay, setSelectedDay]       = useState(new Date())
-    const [startTime, setStartTime]           = useState('09:00')
-    const [duration, setDuration]             = useState(SESSION_CONFIG.min_duration_minutes)
-    const [error, setError]                   = useState(null)
-    const [success, setSuccess]               = useState(false)
+    const [config,       setConfig]       = useState(null)
+    const [reservations, setReservations] = useState([])
+    const [loading,      setLoading]      = useState(true)
+
+    const [selectedDay, setSelectedDay] = useState(new Date())
+    const [startTime,   setStartTime]   = useState('09:00')
+    const [duration,    setDuration]    = useState(null)
+    const [error,       setError]       = useState(null)
+    const [success,     setSuccess]     = useState(false)
+    const [submitting,  setSubmitting]  = useState(false)
+
+    useEffect(() => {
+        const configFetch = apiGetApplicationConfig(id)
+
+        Promise.all([configFetch, apiListBookings("application", id)])
+            .then(([cfg, res]) => {
+                setConfig(cfg)
+                setDuration(cfg.min_duration_minutes)
+                setReservations(res)
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false))
+    }, [id, type])
 
     // Reservations for the currently selected day
     const dayReservations = useMemo(() => {
         const dateStr = toDateStr(selectedDay)
-        return MOCK_RESERVATIONS.filter(r => r.date === dateStr)
-    }, [selectedDay])
+        return reservations.filter(r => r.date === dateStr)
+    }, [selectedDay, reservations])
 
     // Which calendar days have ANY reservation — used to mark dots on the calendar
     const reservedDates = useMemo(() => {
-        return new Set(MOCK_RESERVATIONS.map(r => r.date))
-    }, [])
+        return new Set(reservations.map(r => r.date))
+    }, [reservations])
 
     // Duration options in steps of slot_step_minutes between min and max
     const durationOptions = useMemo(() => {
+        if (!config) return []
         const opts = []
         for (
-            let m = SESSION_CONFIG.min_duration_minutes;
-            m <= SESSION_CONFIG.max_duration_minutes;
-            m += SESSION_CONFIG.slot_step_minutes
+            let m = config.min_duration_minutes;
+            m <= config.max_duration_minutes;
+            m += config.slot_step_minutes
         ) {
             opts.push(m)
         }
         return opts
-    }, [])
+    }, [config])
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         setError(null)
 
         const startMins = toMinutes(startTime)
@@ -124,8 +127,21 @@ export default function BookingPage({ type }) {
             return
         }
 
-        // Success — in production this calls POST /bookings
-        setSuccess(true)
+        setSubmitting(true)
+        try {
+            await apiCreateBooking({
+                resource_type: "application",
+                resource_id: parseInt(id),
+                date: toDateStr(selectedDay),
+                start_time: startTime,
+                duration_minutes: duration,
+            })
+            setSuccess(true)
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setSubmitting(false)
+        }
     }
 
     // Go back to the detail page after success
@@ -141,7 +157,6 @@ export default function BookingPage({ type }) {
     const backLink   = "text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black underline underline-offset-2 mb-4 inline-block"
     const heading    = "font-display text-5xl md:text-6xl text-navy mb-10"
 
-    // Two-column layout on desktop: calendar left, timeline + form right
     const grid = "grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-8 items-start"
 
     const card = [
@@ -159,6 +174,17 @@ export default function BookingPage({ type }) {
         "hover:shadow-none hover:translate-x-1 hover:translate-y-1",
         "transition-all duration-100 cursor-pointer",
     ].join(" ")
+
+    // ── Loading state ─────────────────────────────────────────────────────────
+
+    if (loading) return (
+        <div className={page}>
+            <Navbar />
+            <div className={content}>
+                <p className="text-sm text-gray-400 font-medium">Loading…</p>
+            </div>
+        </div>
+    )
 
     // ── Success state ─────────────────────────────────────────────────────────
 
@@ -180,7 +206,7 @@ export default function BookingPage({ type }) {
                                 <span className="font-bold">Duration:</span> {duration} minutes
                             </p>
                             <button className={confirmBtn} onClick={handleBackAfterSuccess}>
-                                Back to device
+                                Back to application
                             </button>
                         </div>
                     </div>
@@ -211,17 +237,13 @@ export default function BookingPage({ type }) {
                     <div className={card}>
                         <p className={sectionTitle}>Select a day</p>
 
-                        {/* react-calendar is unstyled by default.
-                            We override its classes via the classNames prop
-                            and global CSS in index.css (see below) */}
                         <Calendar
                             onChange={setSelectedDay}
                             value={selectedDay}
-                            minDate={new Date()}      // cannot book in the past
+                            minDate={new Date()}
                             locale="en-US"
                             tileClassName={({ date }) => {
                                 const dateStr = toDateStr(date)
-                                // Add a marker class to days that have reservations
                                 if (reservedDates.has(dateStr)) return 'has-reservation'
                                 return null
                             }}
@@ -282,7 +304,7 @@ export default function BookingPage({ type }) {
                                     Duration — {duration} minutes
                                 </label>
 
-                                {/* Visual duration selector — pill buttons for each step */}
+                                {/* Visual duration selector */}
                                 <div className="flex flex-wrap gap-2">
                                     {durationOptions.map(opt => (
                                         <button
@@ -326,8 +348,9 @@ export default function BookingPage({ type }) {
                             <button
                                 className={confirmBtn}
                                 onClick={handleConfirm}
+                                disabled={submitting}
                             >
-                                Confirm booking
+                                {submitting ? 'Booking…' : 'Confirm booking'}
                             </button>
                         </div>
 
@@ -339,8 +362,6 @@ export default function BookingPage({ type }) {
 }
 
 // ── DayTimeline ───────────────────────────────────────────────────────────────
-// Visual bar showing the full lab day (08:00–20:00) with colored blocks
-// for each reservation and a preview of the user's proposed slot
 
 function DayTimeline({ reservations, startTime, duration }) {
 
@@ -348,7 +369,6 @@ function DayTimeline({ reservations, startTime, duration }) {
     const endMins     = startMins + duration
     const isInBounds  = startMins >= DAY_START && endMins <= DAY_END
 
-    // Convert a reservation to left% and width% on the bar
     const toPercent = (mins) => ((mins - DAY_START) / DAY_SPAN) * 100
 
     const statusColors = {
@@ -366,7 +386,7 @@ function DayTimeline({ reservations, startTime, duration }) {
                 <span>20:00</span>
             </div>
 
-            {/* The bar itself — position:relative so blocks are positioned inside it */}
+            {/* The bar itself */}
             <div className="relative h-10 bg-green-100 border-2 border-black">
 
                 {/* Existing reservation blocks */}
@@ -386,7 +406,7 @@ function DayTimeline({ reservations, startTime, duration }) {
                     )
                 })}
 
-                {/* User's proposed slot — shown as a semi-transparent navy overlay */}
+                {/* User's proposed slot */}
                 {isInBounds && (
                     <div
                         className="absolute top-0 h-full bg-navy opacity-50 border-l-2 border-r-2 border-navy"
@@ -430,7 +450,6 @@ function DayTimeline({ reservations, startTime, duration }) {
 }
 
 // ── BookingSummary ────────────────────────────────────────────────────────────
-// Shows a clear human-readable summary of what will be booked
 
 function BookingSummary({ day, startTime, duration }) {
 
