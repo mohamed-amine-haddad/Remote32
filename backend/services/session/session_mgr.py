@@ -64,7 +64,15 @@ def book_session(configs: dict[str, SessionConfig], json_path: str, user_id: int
     if time_until_next is not None:
         if time_until_next <= timedelta(minutes=10):
             raise RuntimeError(f"Not enough time before next reservation ({int(time_until_next.total_seconds() // 60)} minutes remaining)")
-        duration_minutes = int(time_until_next.total_seconds() // 60)
+        duration_minutes = min(duration_minutes, int(time_until_next.total_seconds() // 60))
+
+    # Lab hours enforcement (08:00–20:00) — also validated client-side for UX
+    start_mins = start_time.hour * 60 + start_time.minute
+    end_mins   = start_mins + duration_minutes
+    if start_mins < 8 * 60:
+        raise RuntimeError("Sessions cannot start before 08:00")
+    if end_mins > 20 * 60:
+        raise RuntimeError("Session would end after lab closing time (20:00)")
 
     # Check if the (possibly capped) time slot overlaps with an existing session on the board
     end_time = start_time + timedelta(minutes=duration_minutes)

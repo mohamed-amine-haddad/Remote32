@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sqlmodel import Session
+from datetime import datetime, timedelta
 
 from backend.database import get_session
 from backend.services.session.session import get_active_by_board, get_reserved_by_board
+
+_STATUS_WINDOW = timedelta(minutes=10)
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
@@ -18,7 +21,8 @@ class DeviceSummaryOut(BaseModel):
 def _board_status(serial_number: str, db: Session) -> str:
     if get_active_by_board(db, serial_number):
         return "occupied"
-    if get_reserved_by_board(db, serial_number):
+    now = datetime.now()
+    if get_reserved_by_board(db, serial_number, starts_before=now + _STATUS_WINDOW, ends_after=now):
         return "reserved"
     return "free"
 

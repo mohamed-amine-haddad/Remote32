@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "react-calendar/dist/Calendar.css";
 
 @theme {
   --font-display: "Bebas Neue", sans-serif;
@@ -26,4 +27,94 @@
     outline: 3px solid #FFD200;
     outline-offset: 3px;
   }
+}
+
+
+/* ── react-calendar — neobrutalism overrides ─────────────────────────────── */
+
+.react-calendar {
+  border: none;
+  font-family: inherit;
+  width: 100%;
+  background: transparent;
+}
+
+.react-calendar__navigation button {
+  font-family: inherit;
+  font-weight: bold;
+  font-size: 0.875rem;
+  color: #03234B;
+  border-radius: 0;
+}
+
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+  background-color: #FFD200;
+}
+
+.react-calendar__navigation button:disabled {
+  background-color: #f5f5f5;
+  color: #aaa;
+}
+
+.react-calendar__month-view__weekdays {
+  font-family: inherit;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.react-calendar__tile {
+  font-family: inherit;
+  font-size: 0.8rem;
+  border-radius: 0;
+}
+
+.react-calendar__tile:enabled:hover,
+.react-calendar__tile:enabled:focus {
+  background-color: #FFD200;
+}
+
+/* Today */
+.react-calendar__tile--now {
+  background: #FFD20044;
+}
+
+.react-calendar__tile--now:enabled:hover,
+.react-calendar__tile--now:enabled:focus {
+  background: #FFD200;
+}
+
+/* Selected day */
+.react-calendar__tile--active {
+  background: #03234B;
+  color: white;
+  font-weight: bold;
+}
+
+.react-calendar__tile--active:enabled:hover,
+.react-calendar__tile--active:enabled:focus {
+  background: #03234B;
+  color: white;
+}
+
+/* Days with reservations — yellow dot below the number */
+.react-calendar__tile.has-reservation {
+  position: relative;
+}
+
+.react-calendar__tile.has-reservation::after {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 5px;
+  background: #FFD200;
+  border: 1px solid #000;
+  border-radius: 50%;
+  margin: 2px auto 0;
+}
+
+/* Duration range slider */
+input[type="range"].booking-slider {
+  accent-color: #FFD200;
+  cursor: pointer;
 }

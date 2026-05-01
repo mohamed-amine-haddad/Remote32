@@ -39,15 +39,25 @@ def get_active_by_board(db: DBSession, serial_number: str) -> SessionRecord | No
         .where(SessionRecord.status == "active")
     ).first()
 
-def get_reserved_by_board(db: DBSession, serial_number: str) -> SessionRecord | None:
-    return db.exec(
+def get_reserved_by_board(
+    db: DBSession,
+    serial_number: str,
+    starts_before: datetime | None = None,
+    ends_after: datetime | None = None,
+) -> SessionRecord | None:
+    query = (
         select(SessionRecord)
         .where(
             (SessionRecord.target_board_sn == serial_number) |
             (SessionRecord.control_board_sn == serial_number)
         )
         .where(SessionRecord.status == "reserved")
-    ).first()
+    )
+    if starts_before is not None:
+        query = query.where(SessionRecord.start_time <= starts_before)
+    if ends_after is not None:
+        query = query.where(SessionRecord.end_time > ends_after)
+    return db.exec(query).first()
 
 
 def get_active_by_user(db: DBSession, user_id: int) -> SessionRecord | None:

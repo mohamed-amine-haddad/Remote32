@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlmodel import Session
+from datetime import datetime, timedelta
 
 from backend.database import get_session
 from backend.services.session.session import get_active_by_board, get_reserved_by_board
+
+_STATUS_WINDOW = timedelta(minutes=10)
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -35,20 +38,23 @@ class SessionConfigOut(BaseModel):
 def _board_status(serial_number: str, db: Session) -> str:
     if get_active_by_board(db, serial_number):
         return "occupied"
-    if get_reserved_by_board(db, serial_number):
+    now = datetime.now()
+    if get_reserved_by_board(db, serial_number, starts_before=now + _STATUS_WINDOW, ends_after=now):
         return "reserved"
     return "free"
 
 
 def _app_status(cfg, db: Session) -> str:
-    """Occupied/reserved if target OR control board is in use; free otherwise."""
+    """Occupied if any board has an active session; reserved only if a reservation
+    starts within the next 10 minutes (matching the booking system's minimum gap)."""
     if get_active_by_board(db, cfg.target.serial_number):
         return "occupied"
     if cfg.is_application and get_active_by_board(db, cfg.control.serial_number):
         return "occupied"
-    if get_reserved_by_board(db, cfg.target.serial_number):
+    now = datetime.now()
+    if get_reserved_by_board(db, cfg.target.serial_number, starts_before=now + _STATUS_WINDOW, ends_after=now):
         return "reserved"
-    if cfg.is_application and get_reserved_by_board(db, cfg.control.serial_number):
+    if cfg.is_application and get_reserved_by_board(db, cfg.control.serial_number, starts_before=now + _STATUS_WINDOW, ends_after=now):
         return "reserved"
     return "free"
 
@@ -126,7 +132,7 @@ def get_application_config(json_path: str, request: Request, db: Session = Depen
             "json_path":             resolved,
             "min_duration_minutes":  15,
             "max_duration_minutes":  60,
-            "slot_step_minutes":     15,
+            "slot_step_minutes":     1,
         }
     except RuntimeError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")

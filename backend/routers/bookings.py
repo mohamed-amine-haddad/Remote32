@@ -31,10 +31,12 @@ class CreateBookingRequest(BaseModel):
 @router.get("", response_model=list[BookingOut])
 def list_bookings(
     json_path: str = Query(...),
+    request: Request = None,
     db: Session = Depends(get_session),
 ):
     try:
-        return bookings_service.get_by_resource(db, json_path)
+        configs = request.app.state.configs
+        return bookings_service.get_by_resource(configs, db, json_path)
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 

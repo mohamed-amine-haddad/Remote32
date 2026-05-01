@@ -20,10 +20,21 @@ def _record_to_booking(record: SessionRecord) -> dict:
     }
 
 
-def get_by_resource(db: Session, json_path: str) -> list[dict]:
+def get_by_resource(configs: dict, db: Session, json_path: str) -> list[dict]:
+    config = configs.get(json_path)
+    if config is None:
+        raise RuntimeError(f"Config '{json_path}' not found")
+
+    sns = [config.target.serial_number]
+    if config.is_application:
+        sns.append(config.control.serial_number)
+
     records = db.exec(
         select(SessionRecord)
-        .where(SessionRecord.json_path == json_path)
+        .where(
+            (SessionRecord.target_board_sn.in_(sns)) |
+            (SessionRecord.control_board_sn.in_(sns))
+        )
         .where(SessionRecord.status.in_(["reserved", "active"]))
     ).all()
     return [_record_to_booking(r) for r in records]
