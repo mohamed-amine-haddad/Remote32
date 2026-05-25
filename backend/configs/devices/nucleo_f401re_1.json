@@ -10,7 +10,9 @@
         "openocd_cfg": "nucleo_f401re_1.cfg",
         "gdb_port": 3333,
         "telnet_port": 4444,
-        "tcl_port": 6666
+        "tcl_port": 6666,
+        "gdb_external_host": "0.tcp.eu.ngrok.io",
+        "gdb_external_port": 12003
     },
     "camera": {
         "host": "retroboy",
