@@ -124,3 +124,4 @@ if __name__ == "__main__":
 
     with Session(engine) as db_session:
         update_board("066FFF3632524B3043205333", {"status" : "idle", "openocd_pid" : None}, db_session)
+        update_board("066DFF535550755187063847", {"status" : "idle", "openocd_pid" : None}, db_session)
