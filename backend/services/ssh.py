@@ -13,10 +13,17 @@ except:
     from backend.services.config_loader import load_all_configs
     from backend.services.devices import get_by_serial
 
+_pool: dict[str, paramiko.SSHClient] = {}
+
 def ssh_connect(credentials: SSHCredentials) -> paramiko.SSHClient:
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(hostname=credentials.host, username=credentials.user, password=credentials.password)
+    host = credentials.host
+    client = _pool.get(host)
+    transport = client.get_transport() if client else None
+    if transport is None or not transport.is_active():
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(hostname=credentials.host, username=credentials.user, password=credentials.password)
+        _pool[host] = client
     return client
 
 if __name__ == "__main__":

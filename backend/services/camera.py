@@ -38,9 +38,7 @@ def open_camera(session_cfg: SessionConfig) -> str:
         if not _is_running(client):
             _, stdout, _ = client.exec_command("cat /tmp/mjpg_streamer.log")
             log = stdout.read().decode().strip()
-            client.close()
             raise RuntimeError(f"mjpg-streamer failed to start:\n{log}")
-    client.close()
     return f"http://{camera.host}:{camera.port}/?action=stream"
 
 
