@@ -88,7 +88,6 @@ def load_all_configs() -> dict[str, SessionConfig]:
 
     return configs
 
-# To be tested
 def validate_configs(configs: dict[str, SessionConfig], db_session: Session) -> None:
     """
     Called at startup. Raises RuntimeError if any check fails, preventing the server from starting.

@@ -12,3 +12,4 @@ except ImportError:
 def send_command(board_cfg: ControlConfig, command: str) -> None:
     client = ssh_connect(board_cfg.pi)
     client.exec_command(f"echo '{command}' > {board_cfg.serial_port}")
+

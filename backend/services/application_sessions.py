@@ -2,14 +2,18 @@ from datetime import datetime
 from sqlmodel import Session as DBSession
 
 try:
-    from backend.services.config_loader import SessionConfig
+    from backend.services.config_loader import SessionConfig, load_config
     from backend.services.session.session_mgr import book_session, activate_reserved_session, end_session as _end_session
     from backend.services.session.session import get_by_id as get_session_by_id, delete
+    from backend.services.openocd import flash_firmware
+    from backend.services.serial_service import send_command as _send_serial_command
     from backend.models import Session as SessionRecord
 except ImportError:
-    from services.config_loader import SessionConfig
+    from services.config_loader import SessionConfig, load_config
     from services.session.session_mgr import book_session, activate_reserved_session, end_session as _end_session
     from services.session.session import get_by_id as get_session_by_id, delete
+    from services.openocd import flash_firmware
+    from services.serial_service import send_command as _send_serial_command
     from models import Session as SessionRecord
 
 DEFAULT_DURATION_MINUTES = 60
@@ -52,8 +56,8 @@ def _build_response(record: SessionRecord, configs: dict[str, SessionConfig]) ->
         "started_at":      _fmt_time(record.start_time),
         "ends_at":         _fmt_time(record.end_time),
         "time_left":       _fmt_time_left(record.end_time),
-        "gdb_host":        config.target.pi.host,
-        "gdb_port":        config.target.gdb_port,
+        "gdb_host":        config.target.gdb_external_host,
+        "gdb_port":        config.target.gdb_external_port,
         "control_devices": _build_control_devices(config),
     }
 
@@ -88,26 +92,34 @@ def end(db: DBSession, configs: dict[str, SessionConfig], session_id: int, user_
 
 
 def flash(db: DBSession, session_id: int, elf_filename: str) -> str:
-    get_session_by_id(db, session_id)
-    # TODO: invoke OpenOCD telnet to flash firmware
+    record = get_session_by_id(db, session_id)
+    config = load_config(record.json_path)
+    if not config.is_application:
+        raise RuntimeError(f"Session {session_id} has no control board")
+    flash_firmware(config.control, elf_filename)
     return f"Flashed {elf_filename}"
 
 
 def send_command(db: DBSession, session_id: int, uart_command: str) -> str:
-    get_session_by_id(db, session_id)
-    # TODO: send over UART/serial connection
+    record = get_session_by_id(db, session_id)
+    config = load_config(record.json_path)
+    if not config.is_application:
+        raise RuntimeError(f"Session {session_id} has no control board")
+    _send_serial_command(config.control, uart_command)
     return f"Command sent: {uart_command}"
 
 
 def get_uart_messages(db: DBSession, session_id: int, since_id: int = 0) -> dict:
     get_session_by_id(db, session_id)
-    # TODO: implement UART log store
     return {"messages": []}
 
 
 def uart_send(db: DBSession, session_id: int, text: str) -> str:
-    get_session_by_id(db, session_id)
-    # TODO: send over UART/serial connection
+    record = get_session_by_id(db, session_id)
+    config = load_config(record.json_path)
+    if not config.is_application:
+        raise RuntimeError(f"Session {session_id} has no control board")
+    _send_serial_command(config.control, text)
     return f"Sent: {text}"
 
 
