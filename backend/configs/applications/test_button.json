@@ -26,6 +26,7 @@
         "gdb_port": 3334,
         "telnet_port": 4445,
         "tcl_port": 6667,
+        "serial_port": "/dev/ttyACM1",
         "firmwares": [
             {
                 "name": "USER Button Control",
