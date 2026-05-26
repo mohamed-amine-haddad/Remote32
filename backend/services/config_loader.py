@@ -50,6 +50,7 @@ class ControlConfig(BaseModel):
     gdb_port : int
     telnet_port : int
     tcl_port : int
+    serial_port : str
     firmwares : list[FirmwareConfig]
 
 class SessionConfig(BaseModel):
