@@ -4,19 +4,21 @@
     "target": {
         "serial_number": "066FFF3632524B3043205333",
         "pi": {
-            "host": "remote32.duckdns.org",
+            "host": "retroboy",
             "user": "retroboy69",
             "password": "Admin060606"
         },
         "openocd_cfg": "nucleo_f401re_1.cfg",
         "gdb_port": 3333,
         "telnet_port": 4444,
-        "tcl_port": 6666
+        "tcl_port": 6666,
+        "gdb_external_host": "4.tcp.eu.ngrok.io",
+        "gdb_external_port": 17728
     },
     "control": {
         "serial_number": "066DFF535550755187063847",
         "pi": {
-            "host": "remote32.duckdns.org",
+            "host": "retroboy",
             "user": "retroboy69",
             "password": "Admin060606"
         },
@@ -44,7 +46,7 @@
         ]
     },
     "camera": {
-        "host": "remote32.duckdns.org",
+        "host": "retroboy",
         "user": "retroboy69",
         "password": "Admin060606",
         "port": 8080

@@ -29,7 +29,6 @@ def is_running_by_pid(openocd_pid: int, board_cfg: TargetConfig | ControlConfig)
     client = ssh_connect(board_cfg.pi)
     _, stdout, _ = client.exec_command(f"cat /proc/{openocd_pid}/comm")
     process_name = stdout.read().decode().strip()
-    client.close()
     return process_name == "openocd"
 
 
@@ -47,7 +46,6 @@ def is_port_in_use(board_cfg: TargetConfig | ControlConfig) -> bool:
     client = ssh_connect(board_cfg.pi)
     _, stdout, _ = client.exec_command(f"ss -tlnp | grep :{board_cfg.gdb_port}")
     result = stdout.read().decode().strip()
-    client.close()
     return len(result) > 0
 
 
@@ -64,7 +62,6 @@ def launch_openocd(board_cfg: TargetConfig | ControlConfig) -> int:
         f"nohup openocd -f {config_path} > {log_file} 2>&1 & echo $!"
     )
     openocd_pid = int(stdout.readline().strip())
-    client.close()
 
     time.sleep(1)
     if not is_running_by_pid(openocd_pid, board_cfg):
@@ -86,7 +83,24 @@ def kill_openocd(board_cfg: TargetConfig | ControlConfig) -> None:
 
     client = ssh_connect(board_cfg.pi)
     client.exec_command(f"kill {board.openocd_pid}")
-    client.close()
+
+
+def flash_firmware(board_cfg: ControlConfig, bin_file: str) -> None:
+    """
+    Flashes a firmware binary to a control board via OpenOCD's telnet interface.
+    Raises RuntimeError if flashing fails or the binary is not verified.
+
+    board_cfg : config of the control board (must have a running OpenOCD instance)
+    bin_file  : binary filename (e.g. "user_button_ctrl.bin"), resolved against CONFIG_PATH
+    """
+    bin_path = os.getenv("CONFIG_PATH") + bin_file
+    client = ssh_connect(board_cfg.pi)
+    cmd = f'echo "program {bin_path} verify reset" | nc -w 5 localhost {board_cfg.telnet_port}'
+    _, stdout, _ = client.exec_command(cmd)
+    stdout.channel.recv_exit_status()
+    output = stdout.read().decode('utf-8', errors='ignore')
+    if "Verified OK" not in output:
+        raise RuntimeError(f"Flash failed for board '{board_cfg.serial_number}':\n{output}")
 
 
 if __name__ == "__main__":

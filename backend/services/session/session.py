@@ -245,9 +245,10 @@ if __name__ == "__main__":
     
     # Test 9: delete — valid
     print("\n--- Test 9: delete (valid) ---")
+    print("\n--- Test 9: delete (valid) ---")
     with DBSession(engine) as db:
         try:
-            delete(db, 2)
+            delete(db, 3)
             print(f"PASS — deleted session id={3}")
         except RuntimeError as e:
             print(f"FAIL — {e}")

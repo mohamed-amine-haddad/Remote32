@@ -93,11 +93,11 @@ def book_session(configs: dict[str, SessionConfig], json_path: str, user_id: int
     ))
 
 
-def activate_reserved_session(session_id: int, configs: dict[str, SessionConfig], db: DBSession) -> int:
+def activate_reserved_session(session_id: int, configs: dict[str, SessionConfig], db: DBSession) -> tuple[str, int]:
     """
     Activates a reserved session: launches OpenOCD and updates statuses.
     Raises RuntimeError if the session is not found, not reserved, or hardware checks fail.
-    Returns the GDB port to connect to.
+    Returns (gdb_external_host, gdb_external_port) to expose to the user.
 
     session_id : ID of the reserved session to activate
     configs    : all configs loaded at startup (json_path -> SessionConfig)
@@ -137,14 +137,14 @@ def activate_reserved_session(session_id: int, configs: dict[str, SessionConfig]
     # Update session status to active
     update(db, session_id, {"status": "active"})    
 
-    return target_board_cfg.gdb_port
+    return target_board_cfg.gdb_external_host, target_board_cfg.gdb_external_port
 
 
-def start_session(configs: dict[str, SessionConfig], json_path: str, user_id: int, duration_minutes: int, db: DBSession) -> int:
+def start_session(configs: dict[str, SessionConfig], json_path: str, user_id: int, duration_minutes: int, db: DBSession) -> tuple[str, int]:
     """
     Starts a session immediately.
     Books the slot for now, then activates it. Cleans up on activation failure.
-    Returns the GDB port to connect to.
+    Returns (gdb_external_host, gdb_external_port) to expose to the user.
 
     configs          : all configs loaded at startup (json_path -> SessionConfig)
     json_path        : key identifying which device/application to start
@@ -247,4 +247,5 @@ if __name__ == "__main__":
     """
 
     with DBSession(engine) as db:
-        end_session(2, configs, db)
+        gdb_host, gdb_port = start_session(configs, JSON_PATH, USER_ID, 60, db)
+        print(gdb_host, gdb_port)

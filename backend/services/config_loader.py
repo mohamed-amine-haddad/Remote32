@@ -25,6 +25,8 @@ class TargetConfig(BaseModel):
     gdb_port : int
     telnet_port : int
     tcl_port : int
+    gdb_external_host : str
+    gdb_external_port : int
 
 class CameraConfig(BaseModel):
     host     : str
