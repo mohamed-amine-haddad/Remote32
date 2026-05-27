@@ -91,6 +91,14 @@ def _make_session(json_path: str) -> dict:
     _uart_next_id[0] += len(boot_msgs)
     _uart_logs[session_id] = boot_msgs
 
+    try:
+        from backend.services.config_loader import load_config
+    except ImportError:
+        from services.config_loader import load_config
+    config = load_config(json_path)
+    gdb_host = config.target.gdb_external_host
+    gdb_port = config.target.gdb_external_port
+
     return {
         "id": session_id,
         "app_name": app["name"] if app else json_path.split("/")[-1].replace(".json", ""),
@@ -98,8 +106,8 @@ def _make_session(json_path: str) -> dict:
         "started_at": "14:32",
         "ends_at": "15:32",
         "time_left": "27:14",
-        "gdb_host": "retroboy",
-        "gdb_port": 3333,
+        "gdb_host": gdb_host,
+        "gdb_port": gdb_port,
         "control_devices": _STUB_CONTROL_DEVICES if has_control else [],
     }
 

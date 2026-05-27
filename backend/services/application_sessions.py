@@ -52,8 +52,8 @@ def _build_response(record: SessionRecord, configs: dict[str, SessionConfig]) ->
         "started_at":      _fmt_time(record.start_time),
         "ends_at":         _fmt_time(record.end_time),
         "time_left":       _fmt_time_left(record.end_time),
-        "gdb_host":        config.target.pi.host,
-        "gdb_port":        config.target.gdb_port,
+        "gdb_host":        config.target.gdb_external_host,
+        "gdb_port":        config.target.gdb_external_port,
         "control_devices": _build_control_devices(config),
     }
 
