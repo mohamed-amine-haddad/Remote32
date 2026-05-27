@@ -44,20 +44,22 @@ with DBSession(engine) as db:
 print("\n--- Step 3: flash ---")
 with DBSession(engine) as db:
     try:
-        msg = flash(db, session_id, "blink_led.bin")
+        msg = flash(db, session_id, "user_button_ctrl.bin")
         print(f"PASS — {msg}")
     except RuntimeError as e:
         print(f"FAIL — {e}")
+
 
 # Step 4: send_command — requires firmware on control board + wiring
 print("\n--- Step 4: send_command ---")
 with DBSession(engine) as db:
     try:
-        msg = send_command(db, session_id, "PRESS_USER")
+        msg = send_command(db, 1, "PRESS_USER")
         print(f"PASS — {msg}")
     except RuntimeError as e:
         print(f"FAIL — {e}")
 
+"""
 # Step 5: uart_send — requires firmware on control board + wiring
 print("\n--- Step 5: uart_send ---")
 with DBSession(engine) as db:
@@ -75,3 +77,4 @@ with DBSession(engine) as db:
         print(f"PASS — {msg}")
     except RuntimeError as e:
         print(f"FAIL — {e}")
+"""

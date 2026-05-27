@@ -95,7 +95,7 @@ def flash_firmware(board_cfg: ControlConfig, bin_file: str) -> None:
     """
     bin_path = os.getenv("CONFIG_PATH") + bin_file
     client = ssh_connect(board_cfg.pi)
-    cmd = f'echo "program {bin_path} verify reset" | nc -w 5 localhost {board_cfg.telnet_port}'
+    cmd = f'echo "program {bin_path} 0x08000000 verify reset" | nc -w 5 localhost {board_cfg.telnet_port}'
     _, stdout, _ = client.exec_command(cmd)
     stdout.channel.recv_exit_status()
     output = stdout.read().decode('utf-8', errors='ignore')
