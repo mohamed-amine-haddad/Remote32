@@ -1,0 +1,9 @@
+version: "3"
+authtoken: <your-ngrok-authtoken>
+tunnels:
+  gdb-f401:
+    proto: tcp
+    addr: 3333
+  gdb-f103:
+    proto: tcp
+    addr: 3334
