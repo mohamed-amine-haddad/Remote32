@@ -1,9 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import ControlDevicePanel from '../components/ControlDevicePanel'
 import SerialMonitor from '../components/SerialMonitor'
 import { apiGetApplicationSession, apiEndApplicationSession, apiFlash, apiCommand, apiGetCameraStream } from '../api/applicationSessions'
+
+// ── Timer helpers ──────────────────────────────────────────────────────────────
+
+function parseTimeLeft(str) {
+    if (!str) return 0
+    const [m, s] = str.split(':').map(Number)
+    return (m || 0) * 60 + (s || 0)
+}
+
+function formatTimeLeft(secs) {
+    const s = Math.max(0, secs)
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+}
 
 // ── CopyButton ─────────────────────────────────────────────────────────────────
 
@@ -93,6 +106,8 @@ export default function SessionPage() {
     const [ending,    setEnding]    = useState(false)
     const [activeTab, setActiveTab] = useState(0)
     const [cameraUrl, setCameraUrl] = useState(null)
+    const [timeLeft,  setTimeLeft]  = useState(0)
+    const timerRef = useRef(null)
 
     useEffect(() => {
         apiGetApplicationSession(id)
@@ -104,6 +119,23 @@ export default function SessionPage() {
             .then(data => setCameraUrl(data.stream_url))
             .catch(() => setCameraUrl(""))
     }, [id])
+
+    useEffect(() => {
+        if (!session) return
+        const secs = parseTimeLeft(session.time_left)
+        setTimeLeft(secs)
+        if (secs <= 0) return
+        timerRef.current = setInterval(() => {
+            setTimeLeft(t => {
+                if (t <= 1) {
+                    clearInterval(timerRef.current)
+                    return 0
+                }
+                return t - 1
+            })
+        }, 1000)
+        return () => clearInterval(timerRef.current)
+    }, [session])
 
     const hasControlDevices = (session?.control_devices?.length ?? 0) > 0
     const backPath = hasControlDevices ? '/applications' : '/devices'
@@ -147,6 +179,10 @@ export default function SessionPage() {
     ].join(" ")
 
     // Bottom bar
+    const timerCls = [
+        "font-mono font-bold text-lg",
+        timeLeft < 60 ? "text-red-600" : timeLeft < 300 ? "text-amber-600" : "text-navy",
+    ].join(" ")
     const bar    = "sticky bottom-0 z-10 bg-white border-t-2 border-black px-6 py-4 flex items-center justify-between"
     const endBtn = [
         "px-5 py-3",
@@ -311,7 +347,7 @@ export default function SessionPage() {
                     </div>
                     <div>
                         <span className="text-gray-400 font-medium mr-2">Time left</span>
-                        <span className="font-mono font-bold text-navy text-lg">{session.time_left}</span>
+                        <span className={timerCls}>{formatTimeLeft(timeLeft)}</span>
                     </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
