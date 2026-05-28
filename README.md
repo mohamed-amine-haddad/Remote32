@@ -8,14 +8,14 @@ Developed as a *Projet de Fin d'Année* (PFA).
 
 ## Current status
 
-**Phase 3 of 5 — stub-to-real wiring.**
+**Phase 4 of 5 — hardware integration.**
 
 | Phase | Description | Status |
 |---|---|---|
 | 1 | Frontend UI prototype | Done |
 | 2 | Auth end-to-end | Done |
-| 3 | Real backend services written; wiring into routers | In progress |
-| 4 | Hardware integration (OpenOCD, UART, camera stream) | Not started |
+| 3 | Real backend services + router wiring | Done |
+| 4 | Hardware integration (OpenOCD, UART, camera, ngrok) | In progress |
 | 5 | Production deployment (nginx, env vars, DB seeding) | Not started |
 
 ---
@@ -49,8 +49,9 @@ Browser (STM32CubeIDE + React UI)
         │
         ▼
     Raspberry Pi
-    ├── OpenOCD → GDB server (port 3333)
-    └── pyserial → UART to control STM32s
+    ├── OpenOCD → GDB server (local port 3333)
+    ├── ngrok → tunnels each GDB port to a public TCP address
+    └── pyserial → UART to control STM32s (in progress)
         │
         ▼
     STM32 boards (SWD/JTAG via ST-Link)
@@ -190,7 +191,9 @@ OpenOCD binds the GDB server on port `3333` and a telnet interface on port `4444
 
 In STM32CubeIDE: **Debug Configurations → GDB Hardware Debugging → Remote Target**
 
-Set the host to `retroboy` and port to `3333`. Flash and debug normally.
+Set the host and port to the values shown on the active session page (these are the
+public ngrok address, not the Pi's local hostname). The session page has a copy button
+for each field.
 
 ---
 
@@ -356,9 +359,11 @@ sudo nginx -t && sudo systemctl reload nginx
 uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-For public access, configure either:
-- **No-IP / DynDNS** — stable hostname, requires router port forwarding. Preferred for lab use.
-- **ngrok** — no router access needed, URL changes on every restart. Use for early demos.
+For public GDB access, the Pi runs **ngrok** as a systemd service. Each board's GDB port
+gets a public TCP tunnel. Because ngrok free tier assigns new ports on every restart,
+after a Pi reboot the `gdb_external_host` and `gdb_external_port` fields in the three
+JSON configs under `backend/configs/` must be updated manually until a startup script
+automates this.
 
 ---
 

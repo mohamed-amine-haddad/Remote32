@@ -10,9 +10,18 @@ Guidance for Claude Code when working in this repository.
 code on real STM32 microcontrollers connected to a Raspberry Pi, from their own
 computer. Developed as a Projet de Fin d'Année (PFA).
 
-**Status:** Phase 3 of 5 — stub-to-real wiring. Frontend UI complete. Auth works end-to-end. All real backend services are written and tested in isolation (`session_mgr`, `openocd`, `session`, `devices`, `users`). All routers except `auth` still call stub services — wiring is the current focus. Devices merged into Applications — a device is an Application with no control boards.
+**Status:** Phase 4 of 5 — hardware integration. Wiring is complete; all routers use real services (stubs are dead code). Auth, device/application listing, booking, session start/end, OpenOCD lifecycle, camera, and ngrok GDB tunneling all work end-to-end.
 
-**Known issue:** bookings API contract mismatch — frontend sends `resource_type`+`resource_id` but router expects `json_path`; frontend `apiCreateBooking` sends `date`+`start_time` as separate strings but backend expects one combined ISO `datetime`. Fix: update the frontend to send `json_path` and a combined datetime.
+**Remaining work:**
+- `application_sessions.flash()` — TODO; needs to call `openocd.flash_firmware()` (function exists)
+- UART send/receive — no `services/uart.py` exists yet; `send_command`, `uart_send`, `get_uart_messages` all return stubs
+- Reserved session activation — `session_mgr.activate_reserved_session()` exists but has no router endpoint and no frontend UI
+- Session countdown timer — `SessionPage` displays `time_left` but never updates it after mount
+- DB seed script — no way to register boards without direct SQLite access; server crashes on first run if boards are missing
+- Admin panel — role exists in DB but no admin router or frontend pages
+- nginx config — `nginx/remote32.conf` does not exist yet
+
+**ngrok note:** Pi uses ngrok (free tier) for public GDB port tunneling. Ports change on restart. After a Pi reboot, manually update `gdb_external_host`/`gdb_external_port` in the three JSON configs until a startup script is written.
 
 ---
 
