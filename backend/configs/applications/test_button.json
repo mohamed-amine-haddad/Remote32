@@ -27,6 +27,7 @@
         "telnet_port": 4445,
         "tcl_port": 6667,
         "serial_port": "/dev/ttyACM1",
+        "baud_rate": 115200,
         "firmwares": [
             {
                 "name": "USER Button Control",

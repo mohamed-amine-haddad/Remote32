@@ -51,7 +51,8 @@ class ControlConfig(BaseModel):
     telnet_port : int
     tcl_port : int
     serial_port : str
-    firmwares : list[FirmwareConfig]
+    baud_rate   : int = 115200
+    firmwares   : list[FirmwareConfig]
 
 class SessionConfig(BaseModel):
     name        : str
