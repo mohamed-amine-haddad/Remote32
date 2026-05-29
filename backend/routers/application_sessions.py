@@ -87,7 +87,9 @@ def start_application_session(
         configs = request.app.state.configs
         return application_sessions_service.start(configs, db, body.json_path, current_user.id)
     except RuntimeError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        msg = str(e)
+        code = status.HTTP_404_NOT_FOUND if "not found" in msg.lower() else status.HTTP_409_CONFLICT
+        raise HTTPException(status_code=code, detail=msg)
 
 
 @router.post("/{id}/end", response_model=MessageOut)
@@ -102,35 +104,45 @@ def end_application_session(
         message = application_sessions_service.end(db, configs, id, current_user.id)
         return {"message": message}
     except RuntimeError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        msg = str(e)
+        code = status.HTTP_404_NOT_FOUND if "not found" in msg.lower() else status.HTTP_409_CONFLICT
+        raise HTTPException(status_code=code, detail=msg)
 
 
 @router.post("/{id}/flash", response_model=MessageOut)
 def flash_firmware(
     id: int,
     body: FlashRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     try:
-        message = application_sessions_service.flash(db, id, body.elf_filename)
+        configs = request.app.state.configs
+        message = application_sessions_service.flash(db, id, body.elf_filename, configs)
         return {"message": message}
     except RuntimeError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        msg = str(e)
+        code = status.HTTP_404_NOT_FOUND if "not found" in msg.lower() else status.HTTP_500_INTERNAL_SERVER_ERROR
+        raise HTTPException(status_code=code, detail=msg)
 
 
 @router.post("/{id}/command", response_model=MessageOut)
 def send_command(
     id: int,
     body: CommandRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     try:
-        message = application_sessions_service.send_command(db, id, body.uart_command)
+        configs = request.app.state.configs
+        message = application_sessions_service.send_command(db, id, body.uart_command, configs)
         return {"message": message}
     except RuntimeError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        msg = str(e)
+        code = status.HTTP_404_NOT_FOUND if "not found" in msg.lower() else status.HTTP_500_INTERNAL_SERVER_ERROR
+        raise HTTPException(status_code=code, detail=msg)
 
 
 @router.get("/{id}/uart/messages", response_model=UartMessagesOut)
@@ -142,8 +154,8 @@ def get_uart_messages(
 ):
     try:
         return application_sessions_service.get_uart_messages(db, id, since_id)
-    except RuntimeError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/{id}/camera", response_model=CameraOut)
@@ -165,11 +177,15 @@ def get_camera_stream(
 def uart_send(
     id: int,
     body: UartSendRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_session),
 ):
     try:
-        message = application_sessions_service.uart_send(db, id, body.text)
+        configs = request.app.state.configs
+        message = application_sessions_service.uart_send(db, id, body.text, configs)
         return {"message": message}
-    except RuntimeError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    except RuntimeError as e:
+        msg = str(e)
+        code = status.HTTP_404_NOT_FOUND if "not found" in msg.lower() else status.HTTP_500_INTERNAL_SERVER_ERROR
+        raise HTTPException(status_code=code, detail=msg)

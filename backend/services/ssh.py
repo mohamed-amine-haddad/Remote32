@@ -9,7 +9,7 @@ class SSHCredentials(Protocol):
 try:
     from config_loader import load_all_configs
     from devices import get_by_serial
-except:
+except ImportError:
     from backend.services.config_loader import load_all_configs
     from backend.services.devices import get_by_serial
 
@@ -20,9 +20,12 @@ def ssh_connect(credentials: SSHCredentials) -> paramiko.SSHClient:
     client = _pool.get(host)
     transport = client.get_transport() if client else None
     if transport is None or not transport.is_active():
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=credentials.host, username=credentials.user, password=credentials.password)
+        try:
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.connect(hostname=credentials.host, username=credentials.user, password=credentials.password)
+        except Exception as e:
+            raise RuntimeError(f"SSH connection to '{credentials.host}' failed: {e}") from e
         _pool[host] = client
     return client
 

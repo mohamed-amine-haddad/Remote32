@@ -155,7 +155,7 @@ def start_session(configs: dict[str, SessionConfig], json_path: str, user_id: in
     record = book_session(configs, json_path, user_id, datetime.now(), duration_minutes, db)
     try:
         return activate_reserved_session(record.id, configs, db)
-    except RuntimeError:
+    except Exception:
         delete(db, record.id)
         raise
 

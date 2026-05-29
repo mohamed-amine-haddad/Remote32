@@ -76,7 +76,7 @@ def start(configs: dict[str, SessionConfig], db: DBSession, json_path: str, user
     record_id = record.id
     try:
         activate_reserved_session(record_id, configs, db)
-    except RuntimeError:
+    except Exception:
         delete(db, record_id)
         raise
     fresh = get_session_by_id(db, record_id)
@@ -91,18 +91,22 @@ def end(db: DBSession, configs: dict[str, SessionConfig], session_id: int, user_
     return "Session ended"
 
 
-def flash(db: DBSession, session_id: int, elf_filename: str) -> str:
+def flash(db: DBSession, session_id: int, elf_filename: str, configs: dict[str, SessionConfig]) -> str:
     record = get_session_by_id(db, session_id)
-    config = load_config(record.json_path)
+    if record.json_path not in configs:
+        raise RuntimeError(f"Config for session {session_id} not found")
+    config = configs[record.json_path]
     if not config.is_application:
         raise RuntimeError(f"Session {session_id} has no control board")
     flash_firmware(config.control, elf_filename)
     return f"Flashed {elf_filename}"
 
 
-def send_command(db: DBSession, session_id: int, uart_command: str) -> str:
+def send_command(db: DBSession, session_id: int, uart_command: str, configs: dict[str, SessionConfig]) -> str:
     record = get_session_by_id(db, session_id)
-    config = load_config(record.json_path)
+    if record.json_path not in configs:
+        raise RuntimeError(f"Config for session {session_id} not found")
+    config = configs[record.json_path]
     if not config.is_application:
         raise RuntimeError(f"Session {session_id} has no control board")
     _send_serial_command(config.control, uart_command)
@@ -114,9 +118,11 @@ def get_uart_messages(db: DBSession, session_id: int, since_id: int = 0) -> dict
     return {"messages": []}
 
 
-def uart_send(db: DBSession, session_id: int, text: str) -> str:
+def uart_send(db: DBSession, session_id: int, text: str, configs: dict[str, SessionConfig]) -> str:
     record = get_session_by_id(db, session_id)
-    config = load_config(record.json_path)
+    if record.json_path not in configs:
+        raise RuntimeError(f"Config for session {session_id} not found")
+    config = configs[record.json_path]
     if not config.is_application:
         raise RuntimeError(f"Session {session_id} has no control board")
     _send_serial_command(config.control, text)
