@@ -20,6 +20,15 @@ export function apiGetApplicationSession(id) {
     return request(`/${id}`)
 }
 
+export function apiGetMyReservation(jsonPath) {
+    const params = new URLSearchParams({ json_path: jsonPath })
+    return request(`/my-reservation?${params}`)
+}
+
+export function apiActivateSession(sessionId) {
+    return request(`/${sessionId}/activate`, { method: 'POST' })
+}
+
 export function apiStartApplicationSession(body) {
     return request('', {
         method: 'POST',

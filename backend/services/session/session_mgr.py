@@ -106,8 +106,11 @@ def activate_reserved_session(session_id: int, configs: dict[str, SessionConfig]
     record = get_by_id(db, session_id)
     if record.status != "reserved":
         raise RuntimeError(f"Session {session_id} is not in 'reserved' state (current: '{record.status}')")
-    if datetime.now() < record.start_time:
+    now = datetime.now()
+    if now < record.start_time:
         raise RuntimeError(f"Session {session_id} cannot be activated before its start time ({record.start_time})")
+    if now > record.end_time:
+        raise RuntimeError(f"Session {session_id} has expired (ended at {record.end_time})")
 
     config  = configs[record.json_path]
     target_board_cfg = config.target

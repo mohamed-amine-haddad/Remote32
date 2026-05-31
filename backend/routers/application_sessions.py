@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlmodel import Session
 from typing import Any
@@ -52,6 +52,13 @@ class UartMessagesOut(BaseModel):
     messages: list[UartMessage]
 
 
+class MyReservationOut(BaseModel):
+    session_id: int
+    start_time: str
+    end_time: str
+    activatable: bool
+
+
 class MessageOut(BaseModel):
     message: str
 
@@ -61,6 +68,15 @@ class CameraOut(BaseModel):
 
 
 # ---------- Endpoints ----------
+
+@router.get("/my-reservation", response_model=MyReservationOut | None)
+def get_my_reservation(
+    json_path: str = Query(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    return application_sessions_service.get_my_reservation(db, json_path, current_user.id)
+
 
 @router.get("/{id}", response_model=ApplicationSessionOut)
 def get_application_session(
@@ -86,6 +102,22 @@ def start_application_session(
     try:
         configs = request.app.state.configs
         return application_sessions_service.start(configs, db, body.json_path, current_user.id)
+    except RuntimeError as e:
+        msg = str(e)
+        code = status.HTTP_404_NOT_FOUND if "not found" in msg.lower() else status.HTTP_409_CONFLICT
+        raise HTTPException(status_code=code, detail=msg)
+
+
+@router.post("/{id}/activate", response_model=ApplicationSessionOut)
+def activate_session(
+    id: int,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
+):
+    try:
+        configs = request.app.state.configs
+        return application_sessions_service.activate(db, id, current_user.id, configs)
     except RuntimeError as e:
         msg = str(e)
         code = status.HTTP_404_NOT_FOUND if "not found" in msg.lower() else status.HTTP_409_CONFLICT

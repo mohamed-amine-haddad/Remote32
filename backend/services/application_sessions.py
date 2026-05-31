@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlmodel import Session as DBSession
+from sqlmodel import Session as DBSession, select
 
 try:
     from backend.services.config_loader import SessionConfig, load_config
@@ -80,6 +80,37 @@ def start(configs: dict[str, SessionConfig], db: DBSession, json_path: str, user
         delete(db, record_id)
         raise
     fresh = get_session_by_id(db, record_id)
+    return _build_response(fresh, configs)
+
+
+def get_my_reservation(db: DBSession, json_path: str, user_id: int) -> dict | None:
+    now = datetime.now()
+    record = db.exec(
+        select(SessionRecord)
+        .where(SessionRecord.user_id == user_id)
+        .where(SessionRecord.json_path == json_path)
+        .where(SessionRecord.status == "reserved")
+        .where(SessionRecord.end_time > now)
+        .order_by(SessionRecord.start_time)
+    ).first()
+    if record is None:
+        return None
+    return {
+        "session_id":  record.id,
+        "start_time":  record.start_time.isoformat(),
+        "end_time":    record.end_time.isoformat(),
+        "activatable": now >= record.start_time,
+    }
+
+
+def activate(db: DBSession, session_id: int, user_id: int, configs: dict[str, SessionConfig]) -> dict:
+    record = get_session_by_id(db, session_id)
+    if record.user_id != user_id:
+        raise RuntimeError(f"Session {session_id} not found")
+    if record.json_path not in configs:
+        raise RuntimeError(f"Config for session {session_id} not found")
+    activate_reserved_session(session_id, configs, db)
+    fresh = get_session_by_id(db, session_id)
     return _build_response(fresh, configs)
 
 

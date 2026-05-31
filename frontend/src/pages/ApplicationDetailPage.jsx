@@ -5,7 +5,7 @@ import StatusBadge from '../components/StatusBadge'
 import JsonRenderer from '../components/JsonRenderer'
 import { useAuth } from '../contexts/AuthContext'
 import { apiGetApplication } from '../api/applications'
-import { apiStartApplicationSession } from '../api/applicationSessions'
+import { apiStartApplicationSession, apiGetMyReservation, apiActivateSession } from '../api/applicationSessions'
 
 // Used for both /devices/:id (type="device") and /applications/:id (type="application").
 // The type prop controls the back link and booking destination only — data fetching is
@@ -19,15 +19,42 @@ export default function ApplicationDetailPage({ type = "application" }) {
     const [loading, setLoading] = useState(true)
     const [starting, setStarting] = useState(false)
     const [startError, setStartError] = useState(null)
+    const [myReservation, setMyReservation] = useState(null)
+    const [activating, setActivating] = useState(false)
+    const [activateError, setActivateError] = useState(null)
 
     const backPath = `/${type}s`
 
     useEffect(() => {
         apiGetApplication(id)
-            .then(setApplication)
+            .then(app => {
+                setApplication(app)
+                if (user) {
+                    apiGetMyReservation(app.json_path)
+                        .then(setMyReservation)
+                        .catch(() => {})
+                }
+            })
             .catch(() => setApplication(null))
             .finally(() => setLoading(false))
     }, [id])
+
+    function fmtIsoTime(iso) {
+        const d = new Date(iso)
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    }
+
+    async function handleActivateSession() {
+        setActivating(true)
+        setActivateError(null)
+        try {
+            const session = await apiActivateSession(myReservation.session_id)
+            navigate(`/session/${type}/${session.id}`)
+        } catch (err) {
+            setActivateError(err.message)
+            setActivating(false)
+        }
+    }
 
     async function handleStartSession() {
         if (!user) { navigate('/login'); return }
@@ -129,6 +156,23 @@ export default function ApplicationDetailPage({ type = "application" }) {
                         >
                             {starting ? 'Starting…' : 'Start session now'}
                         </button>
+                        {myReservation && (() => {
+                            const canActivate = myReservation.activatable && !activating
+                            return (
+                                <button
+                                    className={secondaryBtn}
+                                    disabled={!canActivate}
+                                    style={!canActivate ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                                    onClick={handleActivateSession}
+                                >
+                                    {activating
+                                        ? 'Activating…'
+                                        : myReservation.activatable
+                                            ? 'Activate reserved session'
+                                            : `Reserved · starts ${fmtIsoTime(myReservation.start_time)}`}
+                                </button>
+                            )
+                        })()}
                         <button
                             className={secondaryBtn}
                             onClick={() => user ? navigate(`/book/${type}/${id}`) : navigate('/login')}
@@ -137,6 +181,9 @@ export default function ApplicationDetailPage({ type = "application" }) {
                         </button>
                         {startError && (
                             <p className="w-full text-sm font-medium text-red-600 mt-1">{startError}</p>
+                        )}
+                        {activateError && (
+                            <p className="w-full text-sm font-medium text-red-600 mt-1">{activateError}</p>
                         )}
                     </div>
                 </div>
