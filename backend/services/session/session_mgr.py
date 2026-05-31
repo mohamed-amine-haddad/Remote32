@@ -4,8 +4,12 @@
 import sys
 sys.path.insert(0, ".")
 
+import logging
+import time
 from datetime import datetime, timedelta
 from sqlmodel import Session as DBSession
+
+logger = logging.getLogger(__name__)
 
 try:
     from backend.services.config_loader import SessionConfig
@@ -142,26 +146,32 @@ def activate_reserved_session(session_id: int, configs: dict[str, SessionConfig]
     config  = configs[record.json_path]
     target_board_cfg = config.target
 
+    def _timed(label, fn):
+        t0 = time.perf_counter()
+        result = fn()
+        logger.info("[activate %d] %s — %.2fs", session_id, label, time.perf_counter() - t0)
+        return result
+
     # Real-time hardware checks — target board
-    if is_running(target_board_cfg):
+    if _timed(f"is_running(target {target_board_cfg.serial_number})", lambda: is_running(target_board_cfg)):
         raise RuntimeError(f"Board '{target_board_cfg.serial_number}' is already running")
-    if is_port_in_use(target_board_cfg):
+    if _timed(f"is_port_in_use(target {target_board_cfg.serial_number})", lambda: is_port_in_use(target_board_cfg)):
         raise RuntimeError(f"GDB port {target_board_cfg.gdb_port} is already in use")
 
     # Real-time hardware checks — control board (application only)
     if config.is_application:
-        if is_running(config.control):
+        if _timed(f"is_running(control {config.control.serial_number})", lambda: is_running(config.control)):
             raise RuntimeError(f"Control board '{config.control.serial_number}' is already running")
-        if is_port_in_use(config.control):
+        if _timed(f"is_port_in_use(control {config.control.serial_number})", lambda: is_port_in_use(config.control)):
             raise RuntimeError(f"GDB port {config.control.gdb_port} is already in use")
 
     # Launch OpenOCD for target board and update its status
-    target_openocd_pid = launch_openocd(target_board_cfg)
+    target_openocd_pid = _timed(f"launch_openocd(target {target_board_cfg.serial_number})", lambda: launch_openocd(target_board_cfg))
     update_board(target_board_cfg.serial_number, {"status": "running", "openocd_pid": target_openocd_pid}, db)
 
     # Launch OpenOCD for control board and update its status (application only)
     if config.is_application:
-        control_openocd_pid = launch_openocd(config.control)
+        control_openocd_pid = _timed(f"launch_openocd(control {config.control.serial_number})", lambda: launch_openocd(config.control))
         update_board(config.control.serial_number, {"status": "running", "openocd_pid": control_openocd_pid}, db)
 
     # Update session status to active

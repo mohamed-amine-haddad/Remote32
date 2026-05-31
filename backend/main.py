@@ -1,6 +1,9 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import logging
+logging.basicConfig(level=logging.INFO, format="%(levelname)-8s %(name)s — %(message)s")
+
 import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
