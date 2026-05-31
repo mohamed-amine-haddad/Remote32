@@ -211,4 +211,4 @@ if __name__ == "__main__":
         print("SKIP — launch failed")
     """
     print(launch_openocd(board_cfg))
-    flash_firmware(board_cfg, "blink_ctrl_led.bin")
+    flash_firmware(board_cfg, "user_button_ctrl.bin")

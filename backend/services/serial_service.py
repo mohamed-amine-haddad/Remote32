@@ -14,4 +14,4 @@ def send_command(board_cfg: ControlConfig, command: str) -> None:
     client = ssh_connect(board_cfg.pi)
     port = board_cfg.serial_port
     quoted = shlex.quote(command)
-    client.exec_command(f"stty -F {port} {board_cfg.baud_rate} && echo {quoted} > {port}")
+    client.exec_command(f"stty -F {port} {board_cfg.baud_rate} -opost && echo {quoted} > {port}")

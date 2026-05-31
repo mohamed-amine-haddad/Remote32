@@ -45,39 +45,65 @@ with DBSession(engine) as db:
 print("\n--- Step 3: flash first binfile ---")
 with DBSession(engine) as db:
     try:
-        msg = flash(db, session_id, "blink_ctrl_led.bin", configs)
+        msg = flash(db, session_id, "user_button_ctrl.bin", configs)
         print(f"PASS — {msg}")
     except RuntimeError as e:
         print(f"FAIL — {e}")
 
-print("\n--- Step 4: wait ---")
-time.sleep(10)
 
-# Step 3: flash firmware to control board
-print("\n--- Step 5: flash second binfile---")
-with DBSession(engine) as db:
-    try:
-        msg = flash(db, session_id, "blink_ctrl_led2.bin", configs)
-        print(f"PASS — {msg}")
-    except RuntimeError as e:
-        print(f"FAIL — {e}")
 
-"""
 # Step 4: send_command — requires firmware on control board + wiring
 print("\n--- Step 4: send_command ---")
 with DBSession(engine) as db:
     try:
-        msg = send_command(db, 1, "PRESS_USER")
+        msg = send_command(db, 1, "PRESS_USER", configs)
         print(f"PASS — {msg}")
     except RuntimeError as e:
         print(f"FAIL — {e}")
 
 
-# Step 5: uart_send — requires firmware on control board + wiring
-print("\n--- Step 5: uart_send ---")
+print("\n--- Step Sleep ---")
+time.sleep(10)
+
+# Step 3: flash firmware to control board
+print("\n--- Step 3: flash second binfile ---")
 with DBSession(engine) as db:
     try:
-        msg = uart_send(db, session_id, "hello from backend")
+        msg = flash(db, session_id, "reset_button_ctrl.bin", configs)
+        print(f"PASS — {msg}")
+    except RuntimeError as e:
+        print(f"FAIL — {e}")
+
+
+
+# Step 4: send_command — requires firmware on control board + wiring
+print("\n--- Step 4: send_command ---")
+with DBSession(engine) as db:
+    try:
+        msg = send_command(db, 1, "PRESS_RESET", configs)
+        print(f"PASS — {msg}")
+    except RuntimeError as e:
+        print(f"FAIL — {e}")
+
+time.sleep(3)
+
+# Step 4: send_command — requires firmware on control board + wiring
+print("\n--- Step 4: send_command ---")
+with DBSession(engine) as db:
+    try:
+        msg = send_command(db, 1, "RELEASE_RESET", configs)
+        print(f"PASS — {msg}")
+    except RuntimeError as e:
+        print(f"FAIL — {e}")
+
+
+
+"""
+# Step 4: send_command — requires firmware on control board + wiring
+print("\n--- Step 5: send_command ---")
+with DBSession(engine) as db:
+    try:
+        msg = send_command(db, 1, "RELEASE_USER", configs)
         print(f"PASS — {msg}")
     except RuntimeError as e:
         print(f"FAIL — {e}")
