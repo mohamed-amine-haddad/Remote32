@@ -9,7 +9,7 @@ from backend.models import User
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 REMEMBER_ME_DAYS = 30
 
 
