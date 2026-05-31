@@ -93,7 +93,7 @@ def flash_firmware(board_cfg: ControlConfig, bin_file: str) -> None:
     board_cfg : config of the control board (must have a running OpenOCD instance)
     bin_file  : binary filename (e.g. "user_button_ctrl.bin"), resolved against CONFIG_PATH
     """
-    bin_path = os.getenv("CONFIG_PATH") + bin_file
+    bin_path = os.getenv("BIN_PATH") + bin_file
     client = ssh_connect(board_cfg.pi)
     cmd = f'echo "program {bin_path} 0x08000000 verify reset" | nc -w 5 localhost {board_cfg.telnet_port}'
     _, stdout, _ = client.exec_command(cmd)
@@ -172,7 +172,7 @@ if __name__ == "__main__":
         print(f"PASS — correctly rejected: {e}")
     """
 
-    board_cfg = load_config("configs/devices/nucleo_f401re_1.json").target
+    board_cfg = load_config("configs/devices/nucleo_f103rb_2.json").target
     print(f"Board: {board_cfg.serial_number} | Pi: {board_cfg.pi.host} | GDB port: {board_cfg.gdb_port}\n")
     """
     # Test 1: SSH connection
@@ -211,10 +211,4 @@ if __name__ == "__main__":
         print("SKIP — launch failed")
     """
     print(launch_openocd(board_cfg))
-    try:
-        client = ssh_connect(board_cfg.pi)
-        _, stdout, _ = client.exec_command("echo ok")
-        print(f"PASS — SSH connected to {board_cfg.pi.host}, got: {stdout.read().decode().strip()}")
-        client.close()
-    except Exception as e:
-        print(f"FAIL — SSH connection: {e}")
+    flash_firmware(board_cfg, "blink_ctrl_led.bin")

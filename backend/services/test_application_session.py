@@ -1,3 +1,4 @@
+import time
 import sys
 sys.path.insert(0, ".")
 
@@ -41,15 +42,27 @@ with DBSession(engine) as db:
         print(f"FAIL — {e}")
 
 # Step 3: flash firmware to control board
-print("\n--- Step 3: flash ---")
+print("\n--- Step 3: flash first binfile ---")
 with DBSession(engine) as db:
     try:
-        msg = flash(db, session_id, "user_button_ctrl.bin")
+        msg = flash(db, session_id, "blink_ctrl_led.bin", configs)
         print(f"PASS — {msg}")
     except RuntimeError as e:
         print(f"FAIL — {e}")
 
+print("\n--- Step 4: wait ---")
+time.sleep(10)
 
+# Step 3: flash firmware to control board
+print("\n--- Step 5: flash second binfile---")
+with DBSession(engine) as db:
+    try:
+        msg = flash(db, session_id, "blink_ctrl_led2.bin", configs)
+        print(f"PASS — {msg}")
+    except RuntimeError as e:
+        print(f"FAIL — {e}")
+
+"""
 # Step 4: send_command — requires firmware on control board + wiring
 print("\n--- Step 4: send_command ---")
 with DBSession(engine) as db:
@@ -59,7 +72,7 @@ with DBSession(engine) as db:
     except RuntimeError as e:
         print(f"FAIL — {e}")
 
-"""
+
 # Step 5: uart_send — requires firmware on control board + wiring
 print("\n--- Step 5: uart_send ---")
 with DBSession(engine) as db:
