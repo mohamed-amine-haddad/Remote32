@@ -12,8 +12,8 @@
         "gdb_port": 3334,
         "telnet_port": 4445,
         "tcl_port": 6667,
-        "gdb_external_host": "4.tcp.eu.ngrok.io",
-        "gdb_external_port": 28457
+        "gdb_external_host": "7.tcp.eu.ngrok.io",
+        "gdb_external_port": 17719
     },
     "camera": {
         "host": "retroboy",

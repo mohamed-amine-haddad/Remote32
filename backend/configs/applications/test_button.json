@@ -12,8 +12,8 @@
         "gdb_port": 3333,
         "telnet_port": 4444,
         "tcl_port": 6666,
-        "gdb_external_host": "4.tcp.eu.ngrok.io",
-        "gdb_external_port": 17728
+        "gdb_external_host": "6.tcp.eu.ngrok.io",
+        "gdb_external_port": 18210
     },
     "control": {
         "serial_number": "066DFF535550755187063847",
@@ -26,7 +26,7 @@
         "gdb_port": 3334,
         "telnet_port": 4445,
         "tcl_port": 6667,
-        "serial_port": "/dev/ttyACM1",
+        "serial_port": "/dev/ttyACM0",
         "baud_rate": 115200,
         "firmwares": [
             {
