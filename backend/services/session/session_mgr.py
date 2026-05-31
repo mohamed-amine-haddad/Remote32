@@ -23,6 +23,33 @@ except ImportError:
     from database import engine
 
 
+def expire_sessions(configs: dict[str, SessionConfig], db: DBSession) -> int:
+    """
+    Ends all active sessions whose end_time has passed.
+    Silently skips any session that fails (e.g. already ended, Pi unreachable).
+    Returns the number of sessions expired.
+    """
+    try:
+        from backend.models import Session as SessionRecord
+        from sqlmodel import select
+    except ImportError:
+        from models import Session as SessionRecord
+        from sqlmodel import select
+
+    now = datetime.now()
+    expired = db.exec(
+        select(SessionRecord)
+        .where(SessionRecord.status == "active")
+        .where(SessionRecord.end_time <= now)
+    ).all()
+    for record in expired:
+        try:
+            end_session(record.id, configs, db)
+        except RuntimeError:
+            pass
+    return len(expired)
+
+
 def book_session(configs: dict[str, SessionConfig], json_path: str, user_id: int, start_time: datetime, duration_minutes: int, db: DBSession) -> SessionRecord:
     """
     Validates availability and creates a session record with status 'reserved'.

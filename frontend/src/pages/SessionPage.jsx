@@ -108,6 +108,7 @@ export default function SessionPage() {
     const [cameraUrl, setCameraUrl] = useState(null)
     const [timeLeft,  setTimeLeft]  = useState(0)
     const timerRef = useRef(null)
+    const sessionStartedRef = useRef(false)
 
     useEffect(() => {
         apiGetApplicationSession(id)
@@ -122,6 +123,7 @@ export default function SessionPage() {
 
     useEffect(() => {
         if (!session) return
+        sessionStartedRef.current = true
         const secs = parseTimeLeft(session.time_left)
         setTimeLeft(secs)
         if (secs <= 0) return
@@ -136,6 +138,12 @@ export default function SessionPage() {
         }, 1000)
         return () => clearInterval(timerRef.current)
     }, [session])
+
+    useEffect(() => {
+        if (timeLeft === 0 && sessionStartedRef.current) {
+            navigate(backPath)
+        }
+    }, [timeLeft])
 
     const hasControlDevices = (session?.control_devices?.length ?? 0) > 0
     const backPath = hasControlDevices ? '/applications' : '/devices'

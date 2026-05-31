@@ -1,14 +1,16 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-import backend.models  
+import backend.models
 from backend.database import create_db_and_tables, engine
 from backend.routers.auth import router as auth_router
 from backend.services.config_loader import load_all_configs, validate_configs
+from backend.services.session.session_mgr import expire_sessions
 from sqlmodel import Session
 from backend.routers.devices import router as devices_router
 from backend.routers.applications import router as applications_router
@@ -16,6 +18,17 @@ from backend.routers.bookings import router as bookings_router
 from backend.routers.application_sessions import router as application_sessions_router
 
 # TO BE TESTED
+
+def _expiry_loop(configs, stop_event: threading.Event) -> None:
+    while True:
+        with Session(engine) as db:
+            try:
+                expire_sessions(configs, db)
+            except Exception:
+                pass
+        if stop_event.wait(30):
+            break
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,7 +39,15 @@ async def lifespan(app: FastAPI):
     app.state.configs = configs
     # Stable integer ID → json_path mapping (order matches dict insertion order)
     app.state.configs_ids = {i + 1: path for i, path in enumerate(configs.keys())}
+
+    stop_event = threading.Event()
+    expiry_thread = threading.Thread(target=_expiry_loop, args=(configs, stop_event), daemon=True)
+    expiry_thread.start()
+
     yield
+
+    stop_event.set()
+    expiry_thread.join(timeout=10)
 
 
 app = FastAPI(title="Remote32 API", lifespan=lifespan)

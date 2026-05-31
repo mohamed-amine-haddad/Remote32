@@ -23,7 +23,7 @@ def ssh_connect(credentials: SSHCredentials) -> paramiko.SSHClient:
         try:
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(hostname=credentials.host, username=credentials.user, password=credentials.password)
+            client.connect(hostname=credentials.host, username=credentials.user, password=credentials.password, timeout=15)
         except Exception as e:
             raise RuntimeError(f"SSH connection to '{credentials.host}' failed: {e}") from e
         _pool[host] = client
