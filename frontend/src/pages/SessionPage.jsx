@@ -163,8 +163,8 @@ export default function SessionPage() {
     // Layout
     const page    = "min-h-screen bg-white font-body flex flex-col"
     const content = hasControlDevices
-        ? "flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 px-6 md:px-8 py-8 pb-6 items-start"
-        : "flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 px-6 md:px-10 py-8 pb-6 items-start"
+        ? "flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 px-6 md:px-8 pt-4 pb-6 items-start"
+        : "flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 px-6 md:px-10 pt-4 pb-6 items-start"
 
     // Cards
     const card      = "border-2 border-black rounded-none shadow-nb p-6"
@@ -229,24 +229,26 @@ export default function SessionPage() {
         <div className={page}>
             <Navbar />
 
+            <div className="px-6 md:px-8 pt-6">
+                <Link
+                    to={backPath}
+                    className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black underline underline-offset-2 w-fit"
+                >
+                    ← Back to {hasControlDevices ? 'applications' : 'devices'}
+                </Link>
+            </div>
+
             <main className={content}>
 
-                {/* ── LEFT: Camera + Session info ───────────────── */}
+                {/* ── LEFT: Camera ──────────────────────────────── */}
                 <div className="flex flex-col gap-6">
-
-                    <Link
-                        to={backPath}
-                        className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-black underline underline-offset-2 w-fit"
-                    >
-                        ← Back to {hasControlDevices ? 'applications' : 'devices'}
-                    </Link>
 
                     {/* Camera feed */}
                     <div className={card}>
                         <p className={cardTitle}>Live Feed</p>
                         <div
                             className="relative w-full bg-gray-900 border-2 border-black"
-                            style={{ aspectRatio: "16/9" }}
+                            style={{ aspectRatio: "4/3" }}
                         >
                             {cameraUrl === null ? (
                                 <div className="absolute inset-0 flex items-center justify-center text-gray-500 select-none">
