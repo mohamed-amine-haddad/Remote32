@@ -7,6 +7,7 @@ try:
     from backend.services.session.session import get_by_id as get_session_by_id, delete
     from backend.services.openocd import flash_firmware
     from backend.services.serial_service import send_command as _send_serial_command
+    from backend.services.uart import start_reader as _uart_start, stop_reader as _uart_stop, get_messages as _uart_messages, send_text as _uart_send_text
     from backend.models import Session as SessionRecord
 except ImportError:
     from services.config_loader import SessionConfig, load_config
@@ -14,6 +15,7 @@ except ImportError:
     from services.session.session import get_by_id as get_session_by_id, delete
     from services.openocd import flash_firmware
     from services.serial_service import send_command as _send_serial_command
+    from services.uart import start_reader as _uart_start, stop_reader as _uart_stop, get_messages as _uart_messages, send_text as _uart_send_text
     from models import Session as SessionRecord
 
 DEFAULT_DURATION_MINUTES = 60
@@ -80,6 +82,9 @@ def start(configs: dict[str, SessionConfig], db: DBSession, json_path: str, user
         delete(db, record_id)
         raise
     fresh = get_session_by_id(db, record_id)
+    config = configs[fresh.json_path]
+    if config.target.serial_port:
+        _uart_start(record_id, config.target)
     return _build_response(fresh, configs)
 
 
@@ -111,6 +116,9 @@ def activate(db: DBSession, session_id: int, user_id: int, configs: dict[str, Se
         raise RuntimeError(f"Config for session {session_id} not found")
     activate_reserved_session(session_id, configs, db)
     fresh = get_session_by_id(db, session_id)
+    config = configs[fresh.json_path]
+    if config.target.serial_port:
+        _uart_start(session_id, config.target)
     return _build_response(fresh, configs)
 
 
@@ -119,6 +127,7 @@ def end(db: DBSession, configs: dict[str, SessionConfig], session_id: int, user_
     if record.user_id != user_id:
         raise RuntimeError(f"Session {session_id} not found")
     _end_session(session_id, configs, db)
+    _uart_stop(session_id)
     return "Session ended"
 
 
@@ -146,7 +155,7 @@ def send_command(db: DBSession, session_id: int, uart_command: str, configs: dic
 
 def get_uart_messages(db: DBSession, session_id: int, since_id: int = 0) -> dict:
     get_session_by_id(db, session_id)
-    return {"messages": []}
+    return _uart_messages(session_id, since_id)
 
 
 def uart_send(db: DBSession, session_id: int, text: str, configs: dict[str, SessionConfig]) -> str:
@@ -154,9 +163,9 @@ def uart_send(db: DBSession, session_id: int, text: str, configs: dict[str, Sess
     if record.json_path not in configs:
         raise RuntimeError(f"Config for session {session_id} not found")
     config = configs[record.json_path]
-    if not config.is_application:
-        raise RuntimeError(f"Session {session_id} has no control board")
-    _send_serial_command(config.control, text)
+    if not config.target.serial_port:
+        raise RuntimeError(f"Session {session_id} has no UART port configured on the target board")
+    _uart_send_text(session_id, config.target, text)
     return f"Sent: {text}"
 
 

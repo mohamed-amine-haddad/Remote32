@@ -13,7 +13,9 @@
         "telnet_port": 4445,
         "tcl_port": 6667,
         "gdb_external_host": "7.tcp.eu.ngrok.io",
-        "gdb_external_port": 17719
+        "gdb_external_port": 17719,
+        "serial_port": "/dev/ttyACM0",
+        "baud_rate": 115200
     },
     "camera": {
         "host": "retroboy",

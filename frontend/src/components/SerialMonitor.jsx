@@ -4,9 +4,10 @@ import { apiUartMessages, apiUartSend } from '../api/applicationSessions'
 const POLL_MS = 2000
 
 export default function SerialMonitor({ sessionId }) {
-    const [messages, setMessages] = useState([])
-    const [input,    setInput]    = useState('')
-    const [sending,  setSending]  = useState(false)
+    const [messages,  setMessages]  = useState([])
+    const [input,     setInput]     = useState('')
+    const [sending,   setSending]   = useState(false)
+    const [sendError, setSendError] = useState('')
     const lastIdRef = useRef(0)
     const logRef    = useRef(null)
 
@@ -38,7 +39,13 @@ export default function SerialMonitor({ sessionId }) {
         if (!text || sending) return
         setSending(true)
         setInput('')
-        try { await apiUartSend(sessionId, text) } catch (_) {}
+        setSendError('')
+        try {
+            await apiUartSend(sessionId, text)
+        } catch (e) {
+            setSendError(e?.detail ?? e?.message ?? 'Send failed')
+            setInput(text)
+        }
         setSending(false)
     }
 
@@ -103,6 +110,12 @@ export default function SerialMonitor({ sessionId }) {
                     </div>
                 ))}
             </div>
+
+            {sendError && (
+                <div className="px-4 py-2 border-t-2 border-black bg-red-50 text-xs font-mono text-red-600">
+                    {sendError}
+                </div>
+            )}
 
             <div className={irow}>
                 <input

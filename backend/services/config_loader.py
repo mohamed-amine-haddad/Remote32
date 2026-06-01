@@ -19,14 +19,16 @@ class PiConfig(BaseModel):
     password : str
 
 class TargetConfig(BaseModel):
-    serial_number : str
-    pi : PiConfig
-    openocd_cfg : str
-    gdb_port : int
-    telnet_port : int
-    tcl_port : int
-    gdb_external_host : str
-    gdb_external_port : int
+    serial_number      : str
+    pi                 : PiConfig
+    openocd_cfg        : str
+    gdb_port           : int
+    telnet_port        : int
+    tcl_port           : int
+    gdb_external_host  : str
+    gdb_external_port  : int
+    serial_port        : str = ""
+    baud_rate          : int = 115200
 
 class CameraConfig(BaseModel):
     host     : str
