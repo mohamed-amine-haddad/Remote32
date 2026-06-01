@@ -84,7 +84,9 @@ def start(configs: dict[str, SessionConfig], db: DBSession, json_path: str, user
     fresh = get_session_by_id(db, record_id)
     config = configs[fresh.json_path]
     if config.target.serial_port:
-        _uart_start(record_id, config.target)
+        _uart_start(record_id, config.target, 'target')
+    if config.is_application and config.control.serial_port:
+        _uart_start(record_id, config.control, 'control')
     return _build_response(fresh, configs)
 
 
@@ -118,7 +120,9 @@ def activate(db: DBSession, session_id: int, user_id: int, configs: dict[str, Se
     fresh = get_session_by_id(db, session_id)
     config = configs[fresh.json_path]
     if config.target.serial_port:
-        _uart_start(session_id, config.target)
+        _uart_start(session_id, config.target, 'target')
+    if config.is_application and config.control.serial_port:
+        _uart_start(session_id, config.control, 'control')
     return _build_response(fresh, configs)
 
 

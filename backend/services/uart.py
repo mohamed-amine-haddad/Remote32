@@ -7,14 +7,14 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-_buffers:    dict[int, list[dict]]       = {}
-_next_id:    dict[int, int]              = {}
-_readers:    dict[int, threading.Thread] = {}
-_stop_flags: dict[int, threading.Event]  = {}
-_locks:      dict[int, threading.Lock]   = {}
+_buffers:    dict[int, list[dict]]        = {}
+_next_id:    dict[int, int]               = {}
+_readers:    dict[tuple, threading.Thread] = {}  # (session_id, source) -> thread
+_stop_flags: dict[tuple, threading.Event]  = {}  # (session_id, source) -> event
+_locks:      dict[int, threading.Lock]    = {}
 
 
-def _append(session_id: int, direction: str, text: str) -> None:
+def _append(session_id: int, direction: str, text: str, source: str) -> None:
     lock = _locks.setdefault(session_id, threading.Lock())
     with lock:
         buf = _buffers.setdefault(session_id, [])
@@ -24,50 +24,54 @@ def _append(session_id: int, direction: str, text: str) -> None:
             "direction": direction,
             "text":      text,
             "timestamp": datetime.now().strftime("%H:%M:%S"),
+            "source":    source,
         })
         _next_id[session_id] = nid + 1
 
 
-def start_reader(session_id: int, target_cfg) -> None:
-    t = _readers.get(session_id)
+def start_reader(session_id: int, board_cfg, source: str) -> None:
+    key = (session_id, source)
+    t = _readers.get(key)
     if t and t.is_alive():
         return
     stop = threading.Event()
-    _stop_flags[session_id] = stop
+    _stop_flags[key] = stop
     _buffers.setdefault(session_id, [])
     _next_id.setdefault(session_id, 1)
     _locks.setdefault(session_id, threading.Lock())
     t = threading.Thread(
         target=_reader_loop,
-        args=(session_id, target_cfg, stop),
+        args=(session_id, board_cfg, stop, source),
         daemon=True,
-        name=f"uart-reader-{session_id}",
+        name=f"uart-reader-{session_id}-{source}",
     )
-    _readers[session_id] = t
+    _readers[key] = t
     t.start()
-    logger.info("[uart] reader started for session %d on %s", session_id, target_cfg.serial_port)
+    logger.info("[uart] %s reader started for session %d on %s", source, session_id, board_cfg.serial_port)
 
 
 def stop_reader(session_id: int) -> None:
-    flag = _stop_flags.pop(session_id, None)
-    if flag:
-        flag.set()
-    _readers.pop(session_id, None)
-    logger.info("[uart] reader stopped for session %d", session_id)
+    for source in ('target', 'control'):
+        key = (session_id, source)
+        flag = _stop_flags.pop(key, None)
+        if flag:
+            flag.set()
+        _readers.pop(key, None)
+    logger.info("[uart] readers stopped for session %d", session_id)
 
 
-def _reader_loop(session_id: int, target_cfg, stop: threading.Event) -> None:
+def _reader_loop(session_id: int, board_cfg, stop: threading.Event, source: str) -> None:
     try:
         from backend.services.ssh import ssh_connect
     except ImportError:
         from services.ssh import ssh_connect
 
-    port = target_cfg.serial_port
-    baud = target_cfg.baud_rate
+    port = board_cfg.serial_port
+    baud = board_cfg.baud_rate
 
     while not stop.is_set():
         try:
-            client    = ssh_connect(target_cfg.pi)
+            client    = ssh_connect(board_cfg.pi)
             transport = client.get_transport()
             channel   = transport.open_session()
             channel.settimeout(1.0)
@@ -85,14 +89,14 @@ def _reader_loop(session_id: int, target_cfg, stop: threading.Event) -> None:
                         line, raw = raw.split(b"\n", 1)
                         text = line.rstrip(b"\r").decode("utf-8", errors="replace").strip()
                         if text:
-                            _append(session_id, "rx", text)
+                            _append(session_id, "rx", text, source)
                 except (socket.timeout, TimeoutError):
                     continue
             channel.close()
         except Exception as e:
             if stop.is_set():
                 break
-            logger.warning("[uart] session %d error: %s — retry in 3s", session_id, e)
+            logger.warning("[uart] session %d %s error: %s — retry in 3s", session_id, source, e)
             time.sleep(3)
 
 
@@ -117,4 +121,4 @@ def send_text(session_id: int, target_cfg, text: str) -> None:
     baud   = target_cfg.baud_rate
     quoted = shlex.quote(text + "\n")
     client.exec_command(f"stty -F {port} {baud} -opost && printf {quoted} > {port}")
-    _append(session_id, "tx", text)
+    _append(session_id, "tx", text, "target")

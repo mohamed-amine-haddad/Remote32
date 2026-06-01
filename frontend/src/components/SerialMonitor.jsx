@@ -90,7 +90,7 @@ export default function SerialMonitor({ sessionId }) {
         <div className={wrap}>
 
             <div className={hdr}>
-                <span className={title}>Serial Monitor — Target Board UART</span>
+                <span className={title}>Serial Monitor</span>
                 <button className={clrbtn} onClick={handleClear}>Clear</button>
             </div>
 
@@ -98,17 +98,20 @@ export default function SerialMonitor({ sessionId }) {
                 {messages.length === 0 && (
                     <span className="text-gray-600">Waiting for data…</span>
                 )}
-                {messages.map(msg => (
-                    <div key={msg.id} className="flex gap-2 leading-5">
-                        <span className="text-gray-600 shrink-0">{msg.timestamp}</span>
-                        <span className={msg.direction === 'tx' ? 'text-accent shrink-0' : 'text-green-400 shrink-0'}>
-                            {msg.direction === 'tx' ? '→' : '←'}
-                        </span>
-                        <span className={msg.direction === 'tx' ? 'text-accent' : 'text-green-400'}>
-                            {msg.text}
-                        </span>
-                    </div>
-                ))}
+                {messages.map(msg => {
+                    const isTx      = msg.direction === 'tx'
+                    const isControl = msg.source === 'control'
+                    const color     = isTx ? 'text-accent' : isControl ? 'text-blue-400' : 'text-green-400'
+                    const label     = isControl ? 'Control' : 'Target'
+                    return (
+                        <div key={msg.id} className="flex gap-2 leading-5">
+                            <span className="text-gray-600 shrink-0">{msg.timestamp}</span>
+                            <span className={`${color} shrink-0`}>{isTx ? '→' : '←'}</span>
+                            <span className={`${color} shrink-0`}>{label}</span>
+                            <span className={color}>{msg.text}</span>
+                        </div>
+                    )
+                })}
             </div>
 
             {sendError && (

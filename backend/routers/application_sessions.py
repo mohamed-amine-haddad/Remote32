@@ -46,6 +46,7 @@ class UartMessage(BaseModel):
     direction: str
     text: str
     timestamp: str
+    source: str = 'target'
 
 
 class UartMessagesOut(BaseModel):
