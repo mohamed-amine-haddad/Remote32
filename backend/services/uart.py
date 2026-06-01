@@ -62,16 +62,24 @@ def stop_reader(session_id: int) -> None:
 
 def _reader_loop(session_id: int, board_cfg, stop: threading.Event, source: str) -> None:
     try:
-        from backend.services.ssh import ssh_connect
+        from backend.services.ssh import make_ssh_client
     except ImportError:
-        from services.ssh import ssh_connect
+        from services.ssh import make_ssh_client
 
     port = board_cfg.serial_port
     baud = board_cfg.baud_rate
+    client = None
 
     while not stop.is_set():
+        channel = None
         try:
-            client    = ssh_connect(board_cfg.pi)
+            if client is None or client.get_transport() is None or not client.get_transport().is_active():
+                if client is not None:
+                    try:
+                        client.close()
+                    except Exception:
+                        pass
+                client = make_ssh_client(board_cfg.pi)
             transport = client.get_transport()
             channel   = transport.open_session()
             channel.settimeout(1.0)
@@ -92,12 +100,29 @@ def _reader_loop(session_id: int, board_cfg, stop: threading.Event, source: str)
                             _append(session_id, "rx", text, source)
                 except (socket.timeout, TimeoutError):
                     continue
-            channel.close()
         except Exception as e:
             if stop.is_set():
                 break
             logger.warning("[uart] session %d %s error: %s — retry in 3s", session_id, source, e)
+            if client is not None:
+                try:
+                    client.close()
+                except Exception:
+                    pass
+                client = None
             time.sleep(3)
+        finally:
+            if channel is not None:
+                try:
+                    channel.close()
+                except Exception:
+                    pass
+
+    if client is not None:
+        try:
+            client.close()
+        except Exception:
+            pass
 
 
 def get_messages(session_id: int, since_id: int = 0) -> dict:

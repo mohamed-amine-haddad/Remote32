@@ -19,6 +19,20 @@ except ImportError:
 
 _pool: dict[str, paramiko.SSHClient] = {}
 
+
+def make_ssh_client(credentials: SSHCredentials) -> paramiko.SSHClient:
+    """Open a fresh SSH connection that is NOT added to the pool."""
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(
+        hostname=credentials.host,
+        username=credentials.user,
+        password=credentials.password,
+        timeout=15,
+    )
+    return client
+
+
 def ssh_connect(credentials: SSHCredentials) -> paramiko.SSHClient:
     host = credentials.host
     client = _pool.get(host)
