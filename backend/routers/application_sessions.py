@@ -58,6 +58,7 @@ class MyReservationOut(BaseModel):
     start_time: str
     end_time: str
     activatable: bool
+    status: str = 'reserved'
 
 
 class MessageOut(BaseModel):

@@ -19,9 +19,10 @@ export default function ApplicationDetailPage({ type = "application" }) {
     const [loading, setLoading] = useState(true)
     const [starting, setStarting] = useState(false)
     const [startError, setStartError] = useState(null)
-    const [myReservation, setMyReservation] = useState(null)
-    const [activating, setActivating] = useState(false)
-    const [activateError, setActivateError] = useState(null)
+    const [myReservation,     setMyReservation]     = useState(null)
+    const [reservationChecked, setReservationChecked] = useState(false)
+    const [activating,         setActivating]         = useState(false)
+    const [activateError,      setActivateError]      = useState(null)
 
     const backPath = `/${type}s`
 
@@ -33,6 +34,9 @@ export default function ApplicationDetailPage({ type = "application" }) {
                     apiGetMyReservation(app.json_path)
                         .then(setMyReservation)
                         .catch(() => {})
+                        .finally(() => setReservationChecked(true))
+                } else {
+                    setReservationChecked(true)
                 }
             })
             .catch(() => setApplication(null))
@@ -148,31 +152,40 @@ export default function ApplicationDetailPage({ type = "application" }) {
                     </div>
 
                     <div className={actions}>
-                        <button
-                            className={primaryBtn}
-                            disabled={application.status !== 'free' || starting}
-                            style={application.status !== 'free' ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-                            onClick={handleStartSession}
-                        >
-                            {starting ? 'Starting…' : 'Start session now'}
-                        </button>
-                        {myReservation && (() => {
-                            const canActivate = myReservation.activatable && !activating
-                            return (
-                                <button
-                                    className={secondaryBtn}
-                                    disabled={!canActivate}
-                                    style={!canActivate ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
-                                    onClick={handleActivateSession}
-                                >
-                                    {activating
-                                        ? 'Activating…'
-                                        : myReservation.activatable
-                                            ? 'Activate reserved session'
-                                            : `Reserved · starts ${fmtIsoTime(myReservation.start_time)}`}
-                                </button>
-                            )
-                        })()}
+                        {!reservationChecked ? (
+                            <button className={primaryBtn} disabled style={{ opacity: 0.4, cursor: 'not-allowed' }}>
+                                Loading…
+                            </button>
+                        ) : myReservation?.status === 'active' ? (
+                            <button
+                                className={primaryBtn}
+                                onClick={() => navigate(`/session/${type}/${myReservation.session_id}`)}
+                            >
+                                Rejoin session
+                            </button>
+                        ) : myReservation?.status === 'reserved' ? (
+                            <button
+                                className={secondaryBtn}
+                                disabled={!myReservation.activatable || activating}
+                                style={!myReservation.activatable ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                                onClick={handleActivateSession}
+                            >
+                                {activating
+                                    ? 'Activating…'
+                                    : myReservation.activatable
+                                        ? 'Activate reserved session'
+                                        : `Reserved · starts ${fmtIsoTime(myReservation.start_time)}`}
+                            </button>
+                        ) : (
+                            <button
+                                className={primaryBtn}
+                                disabled={application.status !== 'free' || starting}
+                                style={application.status !== 'free' ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
+                                onClick={handleStartSession}
+                            >
+                                {starting ? 'Starting…' : 'Start session now'}
+                            </button>
+                        )}
                         <button
                             className={secondaryBtn}
                             onClick={() => user ? navigate(`/book/${type}/${id}`) : navigate('/login')}

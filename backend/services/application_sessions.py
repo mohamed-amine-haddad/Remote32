@@ -92,7 +92,22 @@ def start(configs: dict[str, SessionConfig], db: DBSession, json_path: str, user
 
 def get_my_reservation(db: DBSession, json_path: str, user_id: int) -> dict | None:
     now = datetime.now()
-    record = db.exec(
+    active = db.exec(
+        select(SessionRecord)
+        .where(SessionRecord.user_id == user_id)
+        .where(SessionRecord.json_path == json_path)
+        .where(SessionRecord.status == "active")
+        .where(SessionRecord.end_time > now)
+    ).first()
+    if active:
+        return {
+            "session_id":  active.id,
+            "start_time":  active.start_time.isoformat(),
+            "end_time":    active.end_time.isoformat(),
+            "activatable": True,
+            "status":      "active",
+        }
+    reserved = db.exec(
         select(SessionRecord)
         .where(SessionRecord.user_id == user_id)
         .where(SessionRecord.json_path == json_path)
@@ -100,13 +115,14 @@ def get_my_reservation(db: DBSession, json_path: str, user_id: int) -> dict | No
         .where(SessionRecord.end_time > now)
         .order_by(SessionRecord.start_time)
     ).first()
-    if record is None:
+    if reserved is None:
         return None
     return {
-        "session_id":  record.id,
-        "start_time":  record.start_time.isoformat(),
-        "end_time":    record.end_time.isoformat(),
-        "activatable": now >= record.start_time,
+        "session_id":  reserved.id,
+        "start_time":  reserved.start_time.isoformat(),
+        "end_time":    reserved.end_time.isoformat(),
+        "activatable": now >= reserved.start_time,
+        "status":      "reserved",
     }
 
 
