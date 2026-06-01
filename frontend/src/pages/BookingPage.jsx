@@ -10,7 +10,7 @@ import { toDateStr, toMinutes, fromMinutes, hasConflict } from '../utils/time'
 
 // Lab open hours — used for booking validation (separate from the 24h timeline display)
 const LAB_OPEN  = 8  * 60   // 08:00
-const LAB_CLOSE = 20 * 60   // 20:00
+const LAB_CLOSE = 23.5 * 60   // 20:00
 
 export default function BookingPage({ type }) {
     const { id } = useParams()

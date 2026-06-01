@@ -102,7 +102,7 @@ def book_session(configs: dict[str, SessionConfig], json_path: str, user_id: int
     end_mins   = start_mins + duration_minutes
     if start_mins < 8 * 60:
         raise RuntimeError("Sessions cannot start before 08:00")
-    if end_mins > 20 * 60:
+    if end_mins > 23.5 * 60:
         raise RuntimeError("Session would end after lab closing time (20:00)")
 
     # Check if the (possibly capped) time slot overlaps with an existing session on the board
